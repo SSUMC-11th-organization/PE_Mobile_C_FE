@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/sign_up/email_field.dart';
@@ -58,24 +59,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
               children: [
                 SizedBox(
                   height: 64,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: () {
-                            Navigator.of(context).maybePop();
-                          },
-                          icon: const Icon(Icons.arrow_back),
-                        ),
-                      ),
-                      Text(
-                        '회원가입',
-                        style: Theme.of(context).textTheme.titleLarge
-                            ?.copyWith(color: AppColors.primary),
-                      ),
-                    ],
+                  child: Center(
+                    child: Text(
+                      '회원가입',
+                      style: Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(color: AppColors.primary),
+                    ),
                   ),
                 ),
                 Expanded(
@@ -212,6 +201,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
 
                       FocusScope.of(context).unfocus();
+                      context.go('/home');
                     }
                   : null,
               child: const Text('가입하기'),

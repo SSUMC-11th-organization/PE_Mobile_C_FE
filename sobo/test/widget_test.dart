@@ -5,6 +5,8 @@ import 'package:movielog/main.dart';
 void main() {
   testWidgets('회원가입 Form이 표시된다', (tester) async {
     await tester.pumpWidget(const MyApp());
+    await tester.tap(find.text('시작하기'));
+    await tester.pumpAndSettle();
 
     expect(find.text('회원가입'), findsOneWidget);
     expect(find.byType(TextFormField), findsNWidgets(3));
