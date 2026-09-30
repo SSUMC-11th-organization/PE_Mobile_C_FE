@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_colors.dart';
-import '../widgets/profile_appbar.dart';
-import '../widgets/profile_header.dart';
-import '../widgets/profile_statistics.dart';
-import '../widgets/profile_prefered_genre.dart';
+import '../widgets/profile_widget/profile_appbar.dart';
+import '../widgets/profile_widget/profile_header.dart';
+import '../widgets/profile_widget/profile_statistics.dart';
+import '../widgets/profile_widget/profile_prefered_genre.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});

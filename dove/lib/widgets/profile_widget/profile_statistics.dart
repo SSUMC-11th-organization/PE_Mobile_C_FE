@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+
+import '../../theme/app_colors.dart';
 import 'profile_statistics_widget.dart';
 
 class ProfileStatistics extends StatelessWidget {

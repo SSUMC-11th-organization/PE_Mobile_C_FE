@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_text_styles.dart';
+
+import '../../theme/app_text_styles.dart';
 
 class StartMiddleLine extends StatelessWidget {
   const StartMiddleLine({super.key});
@@ -21,14 +22,14 @@ class StartMiddleLine extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-            Text(
-              '보고 싶은 영화부터 나만의 평점까지\n한곳에서 관리해요',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontSize: 14,
-                height: 20 / 14,
-                letterSpacing: 0.25,
-                fontWeight: FontWeight.w500,
+          Text(
+            '보고 싶은 영화부터 나만의 평점까지\n한곳에서 관리해요',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontSize: 14,
+              height: 20 / 14,
+              letterSpacing: 0.25,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

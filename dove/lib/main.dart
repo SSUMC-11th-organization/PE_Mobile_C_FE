@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screen/profile_screen.dart';
+import 'package:movielog/screen/signup_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const ProfileScreen(),
+      home: const SignupScreen(),
     );
   }
 }
