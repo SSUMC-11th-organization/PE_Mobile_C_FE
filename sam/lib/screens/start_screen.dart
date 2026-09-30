@@ -1,11 +1,11 @@
 // 시작 화면 구현
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
-import 'signup_screen.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
@@ -54,11 +54,7 @@ class StartScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: FilledButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SignupScreen(),
-                    ),
-                  ),
+                  onPressed: () => context.go('/signup'),
                   style: FilledButton.styleFrom(
                     backgroundColor: colors.primary,
                     shape: RoundedRectangleBorder(

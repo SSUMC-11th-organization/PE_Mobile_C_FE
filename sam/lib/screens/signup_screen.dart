@@ -1,9 +1,9 @@
 // 회원가입 화면 구현
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
-import 'profile_screen.dart';
 
 const _background = AppColors.warmWhite;
 const _primary = AppColors.violet;
@@ -97,9 +97,7 @@ class _SignupScreenState extends State<SignupScreen> {
       setState(() {});
       return;
     }
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
-    );
+    context.go('/home');
   }
 
   @override

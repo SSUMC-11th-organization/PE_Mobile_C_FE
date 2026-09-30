@@ -1,7 +1,8 @@
 // 앱 진입점
 import 'package:flutter/material.dart';
 
-import 'screens/start_screen.dart';
+import 'router/app_router.dart';
+
 import 'theme/app_theme.dart';
 
 void main() {
@@ -13,11 +14,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'MovieLog',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const StartScreen(),
+      routerConfig: AppRouter.router,
     );
   }
 }
