@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../widgets/start_appbar.dart';
-import '../widgets/start_movie_icon.dart';
-import '../widgets/start_middleline.dart';
-import '../widgets/start_button.dart';
+
+import '../widgets/start_widget/start_appbar.dart';
+import '../widgets/start_widget/start_movie_icon.dart';
+import '../widgets/start_widget/start_middleline.dart';
+import '../widgets/start_widget/start_button.dart';
 import '../theme/app_colors.dart';
 
 class StartScreen extends StatelessWidget {

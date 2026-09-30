@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../theme/app_text_styles.dart';
-import '../theme/app_colors.dart';
+
+import '../../theme/app_text_styles.dart';
+import '../../theme/app_colors.dart';
 
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({super.key});
@@ -15,11 +16,11 @@ class ProfileHeader extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 3),
-              ),
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.primary, width: 3),
+            ),
             child: CircleAvatar(
-                radius: 61,
+              radius: 61,
               backgroundImage: AssetImage('assets/images/profile.png'),
             ),
           ),
@@ -57,7 +58,7 @@ class ProfileHeader extends StatelessWidget {
                 fixedSize: Size(127, 50),
                 foregroundColor: AppColors.primary,
                 side: BorderSide(color: AppColors.primary, width: 1),
-                shape: RoundedRectangleBorder(  
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),

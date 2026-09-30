@@ -26,7 +26,7 @@ void main() {
   ];
 
   for (final movie in movies) {
-    print (movie.title);
+    print(movie.title);
   }
 
   final titles = movies.map((movie) => movie.genre).toList();

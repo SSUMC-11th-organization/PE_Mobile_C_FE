@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
+
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
 
 class StatisticsWidget extends StatelessWidget {
-  const StatisticsWidget({
-    super.key,
-    required this.label,
-    required this.value,
-  });
+  const StatisticsWidget({super.key, required this.label, required this.value});
 
   final String label;
   final String value;
@@ -30,9 +27,9 @@ class StatisticsWidget extends StatelessWidget {
             child: Text(
               label,
               style: AppTextStyles.bodyMedium.copyWith(
-              fontSize: 12,
-              height: 16 / 12,
-              fontWeight: FontWeight.w500,
+                fontSize: 12,
+                height: 16 / 12,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -44,9 +41,9 @@ class StatisticsWidget extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: AppColors.primary,
             ),
-          )
+          ),
         ],
-      )
+      ),
     );
   }
 }
