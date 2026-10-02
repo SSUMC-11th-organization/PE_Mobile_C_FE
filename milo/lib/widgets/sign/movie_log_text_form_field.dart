@@ -107,7 +107,7 @@ class _MovieLogTextFormFieldState extends State<MovieLogTextFormField> {
             ),
             filled: true,
             fillColor: _hasError
-                ? Colors.red.withOpacity(0.08)
+                ? Colors.red.withValues(alpha: 0.08)
                 : AppColors.surfaceContainer,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
