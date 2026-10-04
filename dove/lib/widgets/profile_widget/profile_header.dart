@@ -10,7 +10,7 @@ class ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 358,
-      height: 294,
+      height: 310,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

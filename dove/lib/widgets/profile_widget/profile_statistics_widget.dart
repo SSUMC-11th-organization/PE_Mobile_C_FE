@@ -12,7 +12,6 @@ class StatisticsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 114,
       height: 86,
       decoration: BoxDecoration(
         color: const Color(0xFFF5F3F0),
