@@ -1,12 +1,12 @@
 import 'package:go_router/go_router.dart';
 
-import '../screens/home_screen.dart';
+import '../screens/home/home_screen.dart';
 import '../screens/main_screen.dart';
-import '../screens/movie_detail_screen.dart';
-import '../screens/movie_list_screen.dart';
-import '../screens/profile_screen.dart';
-import '../screens/sign_up_screen.dart';
-import '../screens/start_screen.dart';
+import '../screens/movie/movie_detail_screen.dart';
+import '../screens/movie/movie_list_screen.dart';
+import '../screens/profile/profile_screen.dart';
+import '../screens/auth/sign_up_screen.dart';
+import '../screens/auth/start_screen.dart';
 
 class AppRouter {
   AppRouter._();
