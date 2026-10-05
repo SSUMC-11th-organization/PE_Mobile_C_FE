@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
-import '../data/mock_movies.dart';
-import '../widgets/movie/rating_dialog.dart';
+import '../../data/mock_movies.dart';
+import '../../widgets/movie/ratings/rating_dialog.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   const MovieDetailScreen({super.key, required this.movieId});

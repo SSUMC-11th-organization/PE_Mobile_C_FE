@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_movies.dart';
-import '../theme/app_colors.dart';
-import '../widgets/movie/movie_card.dart';
-import '../widgets/movie/popular_movie_section.dart';
+import '../../data/mock_movies.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/movie/cards/movie_card.dart';
+import '../../widgets/home/popular_movie_section.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
