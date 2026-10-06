@@ -15,12 +15,7 @@ class SignupAppbar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: AppColors.background,
       toolbarHeight: 64,
       centerTitle: true,
-      leading: IconButton(
-        onPressed: () {
-          debugPrint("뒤로가기 버튼을 눌렀습니다");
-        },
-        icon: Icon(Icons.arrow_back, size: 16, color: AppColors.black),
-      ),
+      automaticallyImplyLeading: false,
       title: Text(
         '회원가입',
         style: AppTextStyles.bodyMedium.copyWith(

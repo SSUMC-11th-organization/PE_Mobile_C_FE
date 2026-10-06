@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:movielog/widgets/signup_widget/signup_appbar.dart';
 import 'package:movielog/widgets/signup_widget/signup_form.dart';
 import 'package:movielog/widgets/signup_widget/signup_intro.dart';
@@ -35,34 +36,38 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: SignupAppbar(),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16, 24, 16, 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SignupIntro(),
-              SignupForm(
-                nicknameController: _nicknameController,
-                emailController: _emailController,
-                passwordController: _passwordController,
-                onChanged: () => setState(() {}),
-              ),
-              const SizedBox(height: 24),
-              SignupTermsCheckbox(
-                value: _agreedToTerms,
-                onChanged: (checked) =>
-                    setState(() => _agreedToTerms = checked),
-              ),
-              const SizedBox(height: 16),
-              SignupSubmitButton(
-                onPressed: _canSubmit ? () => debugPrint('가입하기를 눌렀습니다.') : null,
-              ),
-              const SizedBox(height: 16),
-              SignupLoginLink(onPressed: () => debugPrint('로그인을 눌렀습니다.')),
-            ],
+    // 회원가입 화면에서는 뒤로 가기가 동작하지 않는다
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: SignupAppbar(),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(16, 24, 16, 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SignupIntro(),
+                SignupForm(
+                  nicknameController: _nicknameController,
+                  emailController: _emailController,
+                  passwordController: _passwordController,
+                  onChanged: () => setState(() {}),
+                ),
+                const SizedBox(height: 24),
+                SignupTermsCheckbox(
+                  value: _agreedToTerms,
+                  onChanged: (checked) =>
+                      setState(() => _agreedToTerms = checked),
+                ),
+                const SizedBox(height: 16),
+                SignupSubmitButton(
+                  onPressed: _canSubmit ? () => context.go('/home') : null,
+                ),
+                const SizedBox(height: 16),
+                SignupLoginLink(onPressed: () => debugPrint('로그인을 눌렀습니다.')),
+              ],
+            ),
           ),
         ),
       ),

@@ -9,7 +9,6 @@ class ProfileStatistics extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 358,
       height: 86,
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -17,11 +16,16 @@ class ProfileStatistics extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          StatisticsWidget(label: '본 영화', value: '342'),
-          StatisticsWidget(label: '평점', value: '4.2'),
-          StatisticsWidget(label: '즐겨찾기', value: '58'),
+          Expanded(
+            child: StatisticsWidget(label: '본 영화', value: '342'),
+          ),
+          Expanded(
+            child: StatisticsWidget(label: '평점', value: '4.2'),
+          ),
+          Expanded(
+            child: StatisticsWidget(label: '즐겨찾기', value: '58'),
+          ),
         ],
       ),
     );
