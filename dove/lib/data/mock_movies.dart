@@ -115,11 +115,3 @@ Movie? findMovieById(String id) {
   }
   return null;
 }
-
-// 선택한 장르 중 하나라도 가진 영화만 반환. 선택이 없으면 전체
-List<Movie> moviesByGenres(Set<String> genres) {
-  if (genres.isEmpty) return mockMovies;
-  return mockMovies
-      .where((movie) => movie.genres.any(genres.contains))
-      .toList();
-}
