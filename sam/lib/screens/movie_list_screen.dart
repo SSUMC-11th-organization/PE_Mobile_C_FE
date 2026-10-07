@@ -4,9 +4,13 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../models/movie.dart';
 import '../services/fake_movie_service.dart';
+import '../services/genre_preference_store.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_app_bar.dart';
+import '../widgets/empty_view.dart';
+import '../widgets/error_view.dart';
+import '../widgets/loading_view.dart';
 import '../widgets/movie_grid.dart';
 
 const _allGenres = '전체';
@@ -16,23 +20,31 @@ class MovieListScreen extends StatefulWidget {
     super.key,
     this.service = const FakeMovieService(),
     this.mode = MovieLoadMode.success,
+    this.genreStore = const GenrePreferenceStore(),
   });
 
   final FakeMovieService service;
   final MovieLoadMode mode;
+  final GenrePreferenceStore genreStore;
 
   @override
   State<MovieListScreen> createState() => _MovieListScreenState();
 }
 
 class _MovieListScreenState extends State<MovieListScreen> {
-  String _selectedGenre = _allGenres;
+  late String _selectedGenre;
   late Future<List<Movie>> _moviesFuture;
 
   @override
   void initState() {
     super.initState();
+    _selectedGenre = widget.genreStore.load() ?? _allGenres;
     _loadMovies();
+  }
+
+  void _selectGenre(String genre) {
+    widget.genreStore.save(genre);
+    setState(() => _selectedGenre = genre);
   }
 
   void _loadMovies() {
@@ -65,23 +77,22 @@ class _MovieListScreenState extends State<MovieListScreen> {
         future: _moviesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingView();
           }
 
           if (snapshot.hasError) {
             final error = snapshot.error;
-            return _MessageView(
+            return ErrorView(
               message: error is MovieLoadException
                   ? error.message
                   : '알 수 없는 오류가 발생했습니다.',
-              actionLabel: '다시 시도',
-              onAction: () => setState(_loadMovies),
+              onRetry: () => setState(_loadMovies),
             );
           }
 
           final movies = snapshot.data ?? const <Movie>[];
           if (movies.isEmpty) {
-            return const _MessageView(message: '표시할 영화가 없습니다.');
+            return const EmptyView(message: '표시할 영화가 없습니다.');
           }
 
           return _buildMovieList(movies, margin);
@@ -95,9 +106,13 @@ class _MovieListScreenState extends State<MovieListScreen> {
       _allGenres,
       ...{for (final movie in movies) movie.genre},
     ];
-    final filteredMovies = _selectedGenre == _allGenres
+    // 저장된 장르가 받아온 목록에 없으면 '전체'로 표시
+    final selectedGenre = genres.contains(_selectedGenre)
+        ? _selectedGenre
+        : _allGenres;
+    final filteredMovies = selectedGenre == _allGenres
         ? movies
-        : movies.where((movie) => movie.genre == _selectedGenre).toList();
+        : movies.where((movie) => movie.genre == selectedGenre).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,8 +128,8 @@ class _MovieListScreenState extends State<MovieListScreen> {
               final genre = genres[index];
               return _GenreChip(
                 label: genre,
-                selected: genre == _selectedGenre,
-                onSelected: () => setState(() => _selectedGenre = genre),
+                selected: genre == selectedGenre,
+                onSelected: () => _selectGenre(genre),
               );
             },
           ),
@@ -122,30 +137,6 @@ class _MovieListScreenState extends State<MovieListScreen> {
         const SizedBox(height: AppSpacing.md),
         Expanded(child: MovieGrid(movies: filteredMovies)),
       ],
-    );
-  }
-}
-
-class _MessageView extends StatelessWidget {
-  const _MessageView({required this.message, this.actionLabel, this.onAction});
-
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(message, textAlign: TextAlign.center),
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
-          ],
-        ],
-      ),
     );
   }
 }
