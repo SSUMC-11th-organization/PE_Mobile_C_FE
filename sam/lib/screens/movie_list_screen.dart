@@ -1,4 +1,6 @@
 // 영화 목록 화면 구현
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -20,31 +22,46 @@ class MovieListScreen extends StatefulWidget {
     super.key,
     this.service = const FakeMovieService(),
     this.mode = MovieLoadMode.success,
-    this.genreStore = const GenrePreferenceStore(),
+    this.genreStore,
   });
 
   final FakeMovieService service;
   final MovieLoadMode mode;
-  final GenrePreferenceStore genreStore;
+  final GenrePreferenceStore? genreStore;
 
   @override
   State<MovieListScreen> createState() => _MovieListScreenState();
 }
 
 class _MovieListScreenState extends State<MovieListScreen> {
-  late String _selectedGenre;
+  late final GenrePreferenceStore _genreStore =
+      widget.genreStore ?? GenrePreferenceStore();
+  String _selectedGenre = _allGenres;
+  bool _genreSelectedByUser = false;
   late Future<List<Movie>> _moviesFuture;
 
   @override
   void initState() {
     super.initState();
-    _selectedGenre = widget.genreStore.load() ?? _allGenres;
     _loadMovies();
+    _restoreGenre();
+  }
+
+  Future<void> _restoreGenre() async {
+    try {
+      final savedGenre = await _genreStore.load();
+      // 복원 전에 사용자가 이미 고른 장르가 있으면 덮어쓰지 않음
+      if (savedGenre == null || !mounted || _genreSelectedByUser) return;
+      setState(() => _selectedGenre = savedGenre);
+    } catch (_) {
+      // 저장소를 읽지 못하면 '전체'로 시작
+    }
   }
 
   void _selectGenre(String genre) {
-    widget.genreStore.save(genre);
+    _genreSelectedByUser = true;
     setState(() => _selectedGenre = genre);
+    unawaited(_genreStore.save(genre).catchError((Object _) {}));
   }
 
   void _loadMovies() {

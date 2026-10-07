@@ -8,20 +8,54 @@ import 'package:movielog/services/genre_preference_store.dart';
 import 'package:movielog/theme/app_theme.dart';
 import 'package:movielog/widgets/movie_poster_card.dart';
 
-void main() {
-  setUp(() => const GenrePreferenceStore().clear());
+// 테스트용 메모리 저장소 (실제 SharedPreferences 대신 사용)
+class _MemoryGenreStore extends GenrePreferenceStore {
+  _MemoryGenreStore([this.savedGenre]);
 
-  testWidgets('shows all movies and filters them by genre', (
-    WidgetTester tester,
-  ) async {
+  String? savedGenre;
+
+  @override
+  Future<String?> load() async => savedGenre;
+
+  @override
+  Future<void> save(String genre) async => savedGenre = genre;
+}
+
+void main() {
+  void setPhoneSize(WidgetTester tester) {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+  }
 
-    await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const MovieListScreen()),
+  Future<void> pumpMovieList(
+    WidgetTester tester, {
+    MovieLoadMode mode = MovieLoadMode.success,
+    GenrePreferenceStore? store,
+  }) {
+    return tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MovieListScreen(
+          mode: mode,
+          genreStore: store ?? _MemoryGenreStore(),
+        ),
+      ),
     );
+  }
+
+  bool isChipSelected(WidgetTester tester, String label) {
+    return tester
+        .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label))
+        .selected;
+  }
+
+  testWidgets('shows all movies and filters them by genre', (
+    WidgetTester tester,
+  ) async {
+    setPhoneSize(tester);
+    await pumpMovieList(tester);
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
@@ -42,12 +76,7 @@ void main() {
   testWidgets('shows empty message when there are no movies', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: const MovieListScreen(mode: MovieLoadMode.empty),
-      ),
-    );
+    await pumpMovieList(tester, mode: MovieLoadMode.empty);
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('표시할 영화가 없습니다.'), findsOneWidget);
@@ -57,12 +86,7 @@ void main() {
   testWidgets('shows error message with retry when loading fails', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: const MovieListScreen(mode: MovieLoadMode.failure),
-      ),
-    );
+    await pumpMovieList(tester, mode: MovieLoadMode.failure);
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('영화를 불러오지 못했습니다.'), findsOneWidget);
@@ -76,32 +100,25 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('restores the last selected genre when the screen is rebuilt', (
+  testWidgets('saves the selected genre and restores it on rebuild', (
     WidgetTester tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    setPhoneSize(tester);
+    final store = _MemoryGenreStore();
 
-    await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const MovieListScreen()),
-    );
+    await pumpMovieList(tester, store: store);
     await tester.pump(const Duration(seconds: 1));
     await tester.tap(find.widgetWithText(ChoiceChip, 'SF'));
     await tester.pump();
 
-    // 다른 화면으로 갔다가 다시 영화 목록 화면을 만든다
+    expect(store.savedGenre, 'SF');
+
+    // 화면을 없앴다가 같은 저장소로 다시 만든다 (앱 재실행과 같은 상황)
     await tester.pumpWidget(const MaterialApp(home: SizedBox()));
-    await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const MovieListScreen()),
-    );
+    await pumpMovieList(tester, store: store);
     await tester.pump(const Duration(seconds: 1));
 
-    final sfChip = tester.widget<ChoiceChip>(
-      find.widgetWithText(ChoiceChip, 'SF'),
-    );
-    expect(sfChip.selected, isTrue);
+    expect(isChipSelected(tester, 'SF'), isTrue);
     expect(find.byType(MoviePosterCard), findsOneWidget);
     expect(find.text('우주의 끝에서'), findsOneWidget);
   });
@@ -109,22 +126,11 @@ void main() {
   testWidgets('falls back to all genres when the saved genre is missing', (
     WidgetTester tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    const GenrePreferenceStore().save('없는 장르');
-
-    await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const MovieListScreen()),
-    );
+    setPhoneSize(tester);
+    await pumpMovieList(tester, store: _MemoryGenreStore('없는 장르'));
     await tester.pump(const Duration(seconds: 1));
 
-    final allChip = tester.widget<ChoiceChip>(
-      find.widgetWithText(ChoiceChip, '전체'),
-    );
-    expect(allChip.selected, isTrue);
+    expect(isChipSelected(tester, '전체'), isTrue);
     expect(find.byType(MoviePosterCard), findsNWidgets(2));
   });
 }

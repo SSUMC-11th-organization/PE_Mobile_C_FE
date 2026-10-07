@@ -16,6 +16,7 @@ class FakeMovieService {
   Future<List<Movie>> fetchMovies({
     MovieLoadMode mode = MovieLoadMode.success,
   }) async {
+    // TODO(5주차 유저별 평점 조회 API): 목 데이터 대신 실제 API 호출로 교체
     await Future<void>.delayed(const Duration(seconds: 1));
 
     return switch (mode) {
