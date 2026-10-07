@@ -24,5 +24,10 @@ abstract final class AppTheme {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     ),
+    navigationBarTheme: const NavigationBarThemeData(
+      backgroundColor: AppColors.warmWhite,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: AppColors.secondaryContainer,
+    ),
   );
 }

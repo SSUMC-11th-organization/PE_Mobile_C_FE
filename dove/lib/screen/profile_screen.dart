@@ -15,7 +15,7 @@ class ProfileScreen extends StatelessWidget {
       appBar: const ProfileAppbar(), //AppBar구성
       backgroundColor: AppColors.background, // 배경색
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(16, 24, 16, 24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,

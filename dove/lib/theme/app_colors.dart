@@ -28,4 +28,7 @@ abstract final class AppColors {
   static const buttonDisabled = Color(
     0xFFCCC2DC,
   ); // [추가] 비활성 가입하기 버튼 배경색 (Figma W2-01 Button 색상 #CCC2DC)
+
+  static const secondaryContainer = Color(0xFFE8DEF8); // 선택된 탭, 칩 배경
+  static const star = Color(0xFF6750A4); // 별점 아이콘
 }
