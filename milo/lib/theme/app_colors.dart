@@ -12,6 +12,9 @@ abstract final class AppColors {
   static const inputBorder = Color(0xFFCBC4D2);
   static const hintText = Color(0xFF7A7582);
 
+  static const navIndicator = Color(0xFFE8DEF9);
+  static const navSelectedForeground = Color(0xFF686177);
+
   static const violet = Color(0xFF6750A4);
 
   static const warmWhite = Color(0xFFFAF9F5);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:movielog/theme/app_colors.dart';
 import 'package:movielog/theme/app_text_styles.dart';
 import 'package:movielog/widgets/sign/movie_log_text_form_field.dart';
@@ -151,7 +152,7 @@ class _SignUpFormState extends State<SignUpForm> {
               onPressed: _canSubmit
                   ? () {
                       if (_formKey.currentState!.validate()) {
-                        debugPrint('가입 진행');
+                        context.go('/home');
                       }
                     }
                   : null,
@@ -164,7 +165,7 @@ class _SignUpFormState extends State<SignUpForm> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 elevation: 1,
-                shadowColor: Colors.black.withOpacity(0.05),
+                shadowColor: Colors.black.withValues(alpha: 0.05),
               ),
               child: const Text(
                 '가입하기',
