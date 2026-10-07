@@ -2,16 +2,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../data/mock_movies.dart';
+import '../models/movie.dart';
+import '../services/fake_movie_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_app_bar.dart';
-import '../widgets/movie_poster_card.dart';
+import '../widgets/movie_grid.dart';
 
 const _allGenres = '전체';
 
 class MovieListScreen extends StatefulWidget {
-  const MovieListScreen({super.key});
+  const MovieListScreen({
+    super.key,
+    this.service = const FakeMovieService(),
+    this.mode = MovieLoadMode.success,
+  });
+
+  final FakeMovieService service;
+  final MovieLoadMode mode;
 
   @override
   State<MovieListScreen> createState() => _MovieListScreenState();
@@ -19,17 +27,20 @@ class MovieListScreen extends StatefulWidget {
 
 class _MovieListScreenState extends State<MovieListScreen> {
   String _selectedGenre = _allGenres;
+  late Future<List<Movie>> _moviesFuture;
 
-  List<String> get _genres => [
-    _allGenres,
-    ...{for (final movie in movies) movie.genre},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadMovies();
+  }
+
+  void _loadMovies() {
+    _moviesFuture = widget.service.fetchMovies(mode: widget.mode);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredMovies = _selectedGenre == _allGenres
-        ? movies
-        : movies.where((movie) => movie.genre == _selectedGenre).toList();
     final margin = AppSpacing.screenMargin(context);
 
     return Scaffold(
@@ -50,55 +61,89 @@ class _MovieListScreenState extends State<MovieListScreen> {
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 48,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: margin),
-              itemCount: _genres.length,
-              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-              itemBuilder: (context, index) {
-                final genre = _genres[index];
-                return _GenreChip(
-                  label: genre,
-                  selected: genre == _selectedGenre,
-                  onSelected: () => setState(() => _selectedGenre = genre),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                const spacing = AppSpacing.md;
-                final itemWidth =
-                    (constraints.maxWidth - margin * 2 - spacing) / 2;
+      body: FutureBuilder<List<Movie>>(
+        future: _moviesFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                return GridView.builder(
-                  padding: EdgeInsets.fromLTRB(
-                    margin,
-                    0,
-                    margin,
-                    AppSpacing.lg,
-                  ),
-                  itemCount: filteredMovies.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: spacing,
-                    mainAxisSpacing: AppSpacing.lg,
-                    // 포스터(2:3) 높이 + 제목·부가정보 높이
-                    mainAxisExtent: itemWidth * 3 / 2 + 64,
-                  ),
-                  itemBuilder: (context, index) =>
-                      MoviePosterCard(movie: filteredMovies[index]),
-                );
-              },
-            ),
+          if (snapshot.hasError) {
+            final error = snapshot.error;
+            return _MessageView(
+              message: error is MovieLoadException
+                  ? error.message
+                  : '알 수 없는 오류가 발생했습니다.',
+              actionLabel: '다시 시도',
+              onAction: () => setState(_loadMovies),
+            );
+          }
+
+          final movies = snapshot.data ?? const <Movie>[];
+          if (movies.isEmpty) {
+            return const _MessageView(message: '표시할 영화가 없습니다.');
+          }
+
+          return _buildMovieList(movies, margin);
+        },
+      ),
+    );
+  }
+
+  Widget _buildMovieList(List<Movie> movies, double margin) {
+    final genres = [
+      _allGenres,
+      ...{for (final movie in movies) movie.genre},
+    ];
+    final filteredMovies = _selectedGenre == _allGenres
+        ? movies
+        : movies.where((movie) => movie.genre == _selectedGenre).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 48,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: margin),
+            itemCount: genres.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+            itemBuilder: (context, index) {
+              final genre = genres[index];
+              return _GenreChip(
+                label: genre,
+                selected: genre == _selectedGenre,
+                onSelected: () => setState(() => _selectedGenre = genre),
+              );
+            },
           ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Expanded(child: MovieGrid(movies: filteredMovies)),
+      ],
+    );
+  }
+}
+
+class _MessageView extends StatelessWidget {
+  const _MessageView({required this.message, this.actionLabel, this.onAction});
+
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(message, textAlign: TextAlign.center),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+          ],
         ],
       ),
     );
