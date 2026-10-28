@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'app_colors.dart';
+import 'package:movielog/theme/app_colors.dart';
 
 abstract final class AppTextStyles {
   static const titleLarge = TextStyle(
