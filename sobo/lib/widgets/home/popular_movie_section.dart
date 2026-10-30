@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/mock_movies.dart';
+import '../../data/models/tmdb_movie_dto.dart';
+import '../tmdb_poster_image.dart';
 
 class PopularMovieSection extends StatelessWidget {
-  const PopularMovieSection({super.key});
+  const PopularMovieSection({
+    super.key,
+    required this.movies,
+  });
+
+  final List<TmdbMovieDto> movies;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +22,10 @@ class PopularMovieSection extends StatelessWidget {
             const Expanded(
               child: Text(
                 '인기 영화',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             TextButton(
@@ -31,12 +40,20 @@ class PopularMovieSection extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: movies.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            separatorBuilder: (context, index) =>
+            const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final movie = movies[index];
+              final releaseDate = movie.releaseDate ?? '';
+              final year = releaseDate.length >= 4
+                  ? releaseDate.substring(0, 4)
+                  : '';
 
               return GestureDetector(
-                onTap: () => context.push('/movies/${movie.id}'),
+                onTap: () => context.push(
+                  '/movies/${movie.id}',
+                  extra: movie,
+                ),
                 child: SizedBox(
                   width: 148,
                   child: Column(
@@ -44,11 +61,10 @@ class PopularMovieSection extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.asset(
-                          movie.posterAsset,
+                        child: TmdbPosterImage(
+                          posterPath: movie.posterPath,
                           width: 148,
                           height: 160,
-                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -58,7 +74,10 @@ class PopularMovieSection extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        '${movie.year} · ${movie.genre}',
+                        [
+                          if (year.isNotEmpty) year,
+                          'TMDB ${movie.voteAverage.toStringAsFixed(1)} / 10',
+                        ].join(' · '),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],

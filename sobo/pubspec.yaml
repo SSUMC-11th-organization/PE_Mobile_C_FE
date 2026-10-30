@@ -39,6 +39,10 @@ dependencies:
   flutter_rating_bar: ^4.0.1
   shared_preferences: ^2.5.5
   flutter_secure_storage: ^11.2.0
+  http: ^1.6.0
+  flutter_dotenv: ^6.0.1
+  dio: ^5.11.1
+  provider: ^6.1.5+1
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +66,7 @@ flutter:
     - assets/images/posters/
     - assets/logos/
     - assets/icons/
+    - .env
 
   fonts:
     - family: Manrope

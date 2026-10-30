@@ -1,22 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:movielog/router/app_router.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'theme/app_theme.dart';
+import 'app/movie_log_app.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // runApp() 전에 asset을 읽을 수 있도록 Flutter 초기화
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  await dotenv.load(fileName: '.env'); // .env를 읽고 메모리에 저장할 때까지 대기
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
-      debugShowCheckedModeBanner: false,
-      title: 'MovieLog',
-      theme: AppTheme.light,
-      routerConfig: AppRouter.router,
-    );
-  }
+  runApp(const MovieLogApp());
 }
