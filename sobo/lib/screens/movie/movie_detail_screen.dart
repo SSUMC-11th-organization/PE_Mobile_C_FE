@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
-import '../../data/mock_movies.dart';
+import '../../data/models/tmdb_movie_dto.dart';
 import '../../widgets/movie/ratings/rating_dialog.dart';
+import '../../widgets/tmdb_poster_image.dart';
 
 class MovieDetailScreen extends StatefulWidget {
-  const MovieDetailScreen({super.key, required this.movieId});
+  const MovieDetailScreen({
+    super.key,
+    required this.movie,
+  });
 
-  final String movieId;
+  final TmdbMovieDto movie;
 
   @override
-  State<MovieDetailScreen> createState() => _MovieDetailScreenState();
+  State<MovieDetailScreen> createState() =>
+      _MovieDetailScreenState();
 }
 
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
   double? selectedRating;
-
   bool isFavorite = false;
 
   void _toggleFavorite() {
@@ -25,7 +29,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(isFavorite ? '즐겨찾기에 추가했어요.' : '즐겨찾기를 해제했어요.'),
+        content: Text(
+          isFavorite
+              ? '즐겨찾기에 추가했어요.'
+              : '즐겨찾기를 해제했어요.',
+        ),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -34,7 +42,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   Future<void> _openRatingDialog() async {
     final result = await showDialog<double>(
       context: context,
-      builder: (context) => RatingDialog(initialRating: selectedRating ?? 0),
+      builder: (context) => RatingDialog(
+        movieId: widget.movie.id,
+        movieTitle: widget.movie.title,
+        initialRating: selectedRating ?? 0,
+      ),
     );
 
     if (!mounted || result == null) return;
@@ -46,27 +58,26 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final id = int.tryParse(widget.movieId);
-    final movie = findMovieById(id);
+    final movie = widget.movie;
+    final releaseDate = movie.releaseDate;
 
-    if (movie == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('영화 상세')),
-        body: const Center(child: Text('영화를 찾을 수 없습니다.')),
-      );
-    }
+    final releaseText =
+    releaseDate == null || releaseDate.isEmpty
+        ? '개봉일 미정'
+        : releaseDate;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('영화 상세')),
+      appBar: AppBar(
+        title: const Text('영화 상세'),
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              movie.posterAsset,
+            TmdbPosterImage(
+              posterPath: movie.posterPath,
               width: double.infinity,
               height: 380,
-              fit: BoxFit.cover,
             ),
             Padding(
               padding: const EdgeInsets.all(20),
@@ -81,24 +92,50 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text('${movie.year} · ${movie.genre}'),
+                  Text(releaseText),
                   const SizedBox(height: 16),
                   Row(
                     children: [
                       RatingBarIndicator(
-                        rating: movie.averageRating,
+                        // TMDB는 10점 만점, 별은 5개이므로 변환
+                        rating: (movie.voteAverage / 2)
+                            .clamp(0.0, 5.0)
+                            .toDouble(),
                         itemCount: 5,
                         itemSize: 24,
-                        itemBuilder: (context, index) =>
-                            const Icon(Icons.star, color: Colors.amber),
+                        itemBuilder: (context, index) {
+                          return const Icon(
+                            Icons.star,
+                            color: Colors.amber,
+                          );
+                        },
                       ),
                       const SizedBox(width: 8),
-                      Text(movie.averageRating.toStringAsFixed(1)),
+                      Text(
+                        '${movie.voteAverage.toStringAsFixed(1)} / 10',
+                      ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    '줄거리',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    movie.overview.trim().isEmpty
+                        ? '등록된 줄거리가 없습니다.'
+                        : movie.overview,
+                  ),
                   if (selectedRating != null) ...[
-                    const SizedBox(height: 16),
-                    Text('내 별점: ${selectedRating!.toStringAsFixed(1)}'),
+                    const SizedBox(height: 24),
+                    Text(
+                      '내 별점: '
+                          '${selectedRating!.toStringAsFixed(1)} / 5',
+                    ),
                   ],
                 ],
               ),
@@ -115,7 +152,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _toggleFavorite,
                   icon: Icon(
-                    isFavorite ? Icons.bookmark : Icons.bookmark_border,
+                    isFavorite
+                        ? Icons.bookmark
+                        : Icons.bookmark_border,
                   ),
                   label: const Text('즐겨찾기'),
                 ),
