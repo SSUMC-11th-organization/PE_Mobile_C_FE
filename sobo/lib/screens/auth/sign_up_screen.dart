@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../theme/app_colors.dart';
-import '../widgets/sign_up/email_field.dart';
-import '../widgets/sign_up/nickname_field.dart';
-import '../widgets/sign_up/password_field.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/sign_up/email_field.dart';
+import '../../widgets/sign_up/nickname_field.dart';
+import '../../widgets/sign_up/password_field.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
