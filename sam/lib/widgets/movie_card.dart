@@ -7,6 +7,7 @@ import '../models/movie.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
+import 'movie_poster_image.dart';
 
 class MovieCard extends StatelessWidget {
   const MovieCard({super.key, required this.movie});
@@ -14,7 +15,7 @@ class MovieCard extends StatelessWidget {
   final Movie movie;
 
   void _openDetail(BuildContext context) {
-    context.push('/movies/${movie.id}');
+    context.push('/movies/${movie.id}', extra: movie);
   }
 
   @override
@@ -28,7 +29,7 @@ class MovieCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(movie.posterAsset, fit: BoxFit.cover),
+              MoviePosterImage(movie: movie),
               const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -57,7 +58,9 @@ class MovieCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${movie.genre} · ${movie.year}',
+                      movie.year == null
+                          ? movie.genre
+                          : '${movie.genre} · ${movie.year}',
                       style: AppTextStyles.bodyMedium.copyWith(
                         color: AppColors.white.withValues(alpha: 0.8),
                       ),

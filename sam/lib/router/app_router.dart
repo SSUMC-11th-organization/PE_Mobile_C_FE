@@ -1,4 +1,6 @@
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:movielog/models/movie.dart';
 import 'package:movielog/screens/home_screen.dart';
 import 'package:movielog/screens/main_screen.dart';
 import 'package:movielog/screens/movie_detail_screen.dart';
@@ -6,6 +8,9 @@ import 'package:movielog/screens/movie_list_screen.dart';
 import 'package:movielog/screens/profile_screen.dart';
 import 'package:movielog/screens/start_screen.dart';
 import 'package:movielog/screens/signup_screen.dart';
+import 'package:movielog/services/tmdb_movie_service.dart';
+import 'package:movielog/view_models/movie_home_view_model.dart';
+import 'package:movielog/view_models/movie_list_view_model.dart';
 
 class AppRouter {
   AppRouter._();
@@ -28,11 +33,23 @@ class AppRouter {
         routes: [
           GoRoute(
             path: '/home',
-            builder: (context, state) => const HomeScreen(),
+            builder: (context, state) =>
+                ChangeNotifierProvider<MovieHomeViewModel>(
+                  create: (context) =>
+                      MovieHomeViewModel(context.read<TmdbMovieService>())
+                        ..loadPopular(),
+                  child: const HomeScreen(),
+                ),
           ),
           GoRoute(
             path: '/movies',
-            builder: (context, state) => const MovieListScreen(),
+            builder: (context, state) =>
+                ChangeNotifierProvider<MovieListViewModel>(
+                  create: (context) =>
+                      MovieListViewModel(context.read<TmdbMovieService>())
+                        ..loadInitial(),
+                  child: const MovieListScreen(),
+                ),
           ),
           GoRoute(
             path: '/my',
@@ -45,7 +62,11 @@ class AppRouter {
         path: '/movies/:movieId',
         builder: (context, state) {
           final movieId = int.tryParse(state.pathParameters['movieId'] ?? '');
-          return MovieDetailScreen(movieId: movieId);
+          final movie = state.extra;
+          return MovieDetailScreen(
+            movieId: movieId,
+            movie: movie is Movie ? movie : null,
+          );
         },
       ),
     ],

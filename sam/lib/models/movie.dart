@@ -4,13 +4,16 @@ class Movie {
     required this.id,
     required this.title,
     required this.genre,
-    required this.year,
-    required this.posterAsset,
+    this.year,
+    this.posterAsset,
+    this.posterUrl,
   });
 
   final int id;
   final String title;
   final String genre;
-  final int year;
-  final String posterAsset;
+  // TMDB 응답에 개봉일이 없으면 null
+  final int? year;
+  final String? posterAsset;
+  final String? posterUrl;
 }

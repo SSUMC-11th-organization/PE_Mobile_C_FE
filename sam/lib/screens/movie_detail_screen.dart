@@ -10,14 +10,17 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_app_bar.dart';
+import '../widgets/movie_poster_image.dart';
 import '../widgets/movie_rating_input.dart';
 
 const _averageRating = 4.5;
 
 class MovieDetailScreen extends StatelessWidget {
-  const MovieDetailScreen({super.key, required this.movieId});
+  const MovieDetailScreen({super.key, required this.movieId, this.movie});
 
   final int? movieId;
+  // 목록·홈에서 넘겨준 TMDB 영화 (새로고침 등으로 없으면 목 데이터에서 찾음)
+  final Movie? movie;
 
   void _goBack(BuildContext context) {
     if (context.canPop()) {
@@ -29,7 +32,7 @@ class MovieDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final movie = findMovieById(movieId);
+    final movie = this.movie ?? findMovieById(movieId);
 
     return Scaffold(
       appBar: CommonAppBar(
@@ -59,12 +62,14 @@ class MovieDetailScreen extends StatelessWidget {
               children: [
                 AspectRatio(
                   aspectRatio: 2 / 3,
-                  child: Image.asset(movie.posterAsset, fit: BoxFit.cover),
+                  child: MoviePosterImage(movie: movie),
                 ),
                 _MovieInfo(movie: movie),
               ],
             ),
-      bottomNavigationBar: movie == null ? null : const _BottomActions(),
+      bottomNavigationBar: movie == null
+          ? null
+          : _BottomActions(movieId: movie.id),
     );
   }
 }
@@ -89,7 +94,7 @@ class _MovieInfo extends StatelessWidget {
           Text(movie.title, style: AppTextStyles.headlineLarge),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '${movie.year} • ${movie.genre}',
+            movie.year == null ? movie.genre : '${movie.year} • ${movie.genre}',
             style: AppTextStyles.bodySmall,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -129,7 +134,9 @@ class _MovieInfo extends StatelessWidget {
 }
 
 class _BottomActions extends StatefulWidget {
-  const _BottomActions();
+  const _BottomActions({required this.movieId});
+
+  final int movieId;
 
   @override
   State<_BottomActions> createState() => _BottomActionsState();
@@ -152,7 +159,7 @@ class _BottomActionsState extends State<_BottomActions> {
   Future<void> _openRatingDialog() async {
     final rating = await showDialog<double>(
       context: context,
-      builder: (_) => const _RatingDialog(),
+      builder: (_) => _RatingDialog(movieId: widget.movieId),
     );
     if (rating == null || !mounted) return;
     _showSnackBar('${rating.toStringAsFixed(1)}점을 남겼어요');
@@ -218,7 +225,10 @@ class _BottomActionsState extends State<_BottomActions> {
 }
 
 class _RatingDialog extends StatefulWidget {
-  const _RatingDialog();
+  const _RatingDialog({required this.movieId});
+
+  // TMDB 영화 id (평점 저장 API에서 movieId로 사용)
+  final int movieId;
 
   @override
   State<_RatingDialog> createState() => _RatingDialogState();

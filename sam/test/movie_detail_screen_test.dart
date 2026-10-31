@@ -4,7 +4,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:movielog/screens/home_screen.dart';
+import 'package:movielog/data/mock_movies.dart';
 import 'package:movielog/screens/movie_detail_screen.dart';
 import 'package:movielog/widgets/movie_card.dart';
 import 'package:movielog/widgets/movie_rating_input.dart';
@@ -12,7 +12,11 @@ import 'package:movielog/widgets/movie_rating_input.dart';
 GoRouter _router() => GoRouter(
   initialLocation: '/home',
   routes: [
-    GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+    GoRoute(
+      path: '/home',
+      builder: (context, state) =>
+          Scaffold(body: MovieCard(movie: movies.first)),
+    ),
     GoRoute(
       path: '/movies/:movieId',
       builder: (context, state) => MovieDetailScreen(
