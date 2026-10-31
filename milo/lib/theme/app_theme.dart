@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import 'app_colors.dart';
+import 'package:movielog/theme/app_colors.dart';
 
 abstract final class AppTheme {
   static final ThemeData light = ThemeData(

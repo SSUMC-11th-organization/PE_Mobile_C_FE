@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:movielog/screen/movie_log_app.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:movielog/app/movie_log_app.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   runApp(const MovieLogApp());
 }

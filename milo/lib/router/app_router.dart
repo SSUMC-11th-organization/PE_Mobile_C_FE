@@ -1,11 +1,15 @@
 import 'package:go_router/go_router.dart';
-import 'package:movielog/screen/home_screen.dart';
-import 'package:movielog/screen/main_screen.dart';
-import 'package:movielog/screen/movie_detail_screen.dart';
-import 'package:movielog/screen/movie_list_screen.dart';
-import 'package:movielog/screen/profile_screen.dart';
-import 'package:movielog/screen/sign_up_screen.dart';
-import 'package:movielog/screen/start_screen.dart';
+import 'package:movielog/screens/my_page_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:movielog/data/services/tmdb_movie_service.dart';
+import 'package:movielog/screens/home_screen.dart';
+import 'package:movielog/screens/main_screen.dart';
+import 'package:movielog/screens/movie_detail_screen.dart';
+import 'package:movielog/screens/movie_list_screen.dart';
+import 'package:movielog/screens/register_screen.dart';
+import 'package:movielog/screens/start_screen.dart';
+import 'package:movielog/view_models/movie_home_view_model.dart';
+import 'package:movielog/view_models/movie_list_view_model.dart';
 
 class AppRouter {
   AppRouter._();
@@ -16,7 +20,7 @@ class AppRouter {
       GoRoute(path: '/start', builder: (context, state) => const StartScreen()),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const SignUpScreen(),
+        builder: (context, state) => const RegisterScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -27,7 +31,13 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/home',
-                builder: (context, state) => const HomeScreen(),
+                builder: (context, state) =>
+                    ChangeNotifierProvider<MovieHomeViewModel>(
+                      create: (context) =>
+                          MovieHomeViewModel(context.read<TmdbMovieService>())
+                            ..loadPopular(),
+                      child: const HomeScreen(),
+                    ),
               ),
             ],
           ),
@@ -41,7 +51,12 @@ class AppRouter {
                       (genreParam == null || genreParam.isEmpty)
                       ? const <String>[]
                       : genreParam.split(',');
-                  return MovieListScreen(initialGenres: initialGenres);
+                  return ChangeNotifierProvider<MovieListViewModel>(
+                    create: (context) =>
+                        MovieListViewModel(context.read<TmdbMovieService>())
+                          ..loadInitial(),
+                    child: MovieListScreen(initialGenres: initialGenres),
+                  );
                 },
                 routes: [
                   GoRoute(
@@ -61,7 +76,7 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/my',
-                builder: (context, state) => const ProfileScreen(),
+                builder: (context, state) => const MyPageScreen(),
               ),
             ],
           ),
