@@ -1,14 +1,14 @@
 // 영화 포스터 2열 그리드 위젯
 import 'package:flutter/material.dart';
 
-import '../models/movie.dart';
+import '../models/tmdb_movie_dto.dart';
 import '../theme/app_theme.dart';
 import 'movie_poster_card.dart';
 
 class MovieGrid extends StatelessWidget {
   const MovieGrid({super.key, required this.movies});
 
-  final List<Movie> movies;
+  final List<TmdbMovieDto> movies;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +30,7 @@ class MovieGrid extends StatelessWidget {
             mainAxisExtent: itemWidth * 3 / 2 + 64,
           ),
           itemBuilder: (context, index) =>
-              MoviePosterCard(movie: movies[index]),
+              MoviePosterCard(movie: movies[index].toMovie()),
         );
       },
     );

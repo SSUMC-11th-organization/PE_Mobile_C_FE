@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../models/movie.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
+import 'movie_poster_image.dart';
 
 class MoviePosterCard extends StatelessWidget {
   const MoviePosterCard({super.key, required this.movie});
@@ -14,7 +15,8 @@ class MoviePosterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/movies/${movie.id}'),
+      // 경로에는 TMDB id를, extra에는 화면에 그릴 영화 데이터를 전달
+      onTap: () => context.push('/movies/${movie.id}', extra: movie),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -22,7 +24,7 @@ class MoviePosterCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             child: AspectRatio(
               aspectRatio: 2 / 3,
-              child: Image.asset(movie.posterAsset, fit: BoxFit.cover),
+              child: MoviePosterImage(movie: movie),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -34,7 +36,7 @@ class MoviePosterCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '${movie.year} · ${movie.genre}',
+            movie.year == null ? movie.genre : '${movie.year} · ${movie.genre}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodySmall,
