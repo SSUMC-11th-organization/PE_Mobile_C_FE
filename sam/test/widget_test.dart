@@ -1,7 +1,7 @@
 // 시작 화면 테스트
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:movielog/main.dart';
+import 'package:movielog/app/movie_log_app.dart';
 
 void main() {
   testWidgets('Start screen shows title and start button', (

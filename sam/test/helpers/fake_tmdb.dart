@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:movielog/services/tmdb_movie_service.dart';
+import 'package:movielog/data/services/tmdb_movie_service.dart';
 
 // 요청별로 (상태 코드, 응답 JSON)을 정하는 함수
 typedef FakeResponder = (int, Map<String, dynamic>) Function(

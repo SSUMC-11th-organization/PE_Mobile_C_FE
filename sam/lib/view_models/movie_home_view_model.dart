@@ -2,8 +2,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../models/tmdb_movie_dto.dart';
-import '../services/tmdb_movie_service.dart';
+import '../data/models/tmdb_movie_dto.dart';
+import '../data/services/tmdb_movie_service.dart';
 
 enum MovieHomeLoadStatus { idle, loading, success, empty, error }
 

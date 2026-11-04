@@ -1,11 +1,11 @@
 // TMDB 서비스·DTO·로그 마스킹 테스트
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:movielog/models/tmdb_movie_dto.dart';
+import 'package:movielog/data/models/tmdb_movie_dto.dart';
 import 'package:dio/dio.dart';
-import 'package:movielog/services/tmdb_dio.dart';
-import 'package:movielog/services/tmdb_logging_interceptor.dart';
-import 'package:movielog/services/tmdb_movie_service.dart';
+import 'package:movielog/data/services/tmdb_dio.dart';
+import 'package:movielog/data/services/tmdb_logging_interceptor.dart';
+import 'package:movielog/data/services/tmdb_movie_service.dart';
 import 'package:movielog/view_models/movie_list_view_model.dart';
 
 import 'helpers/fake_tmdb.dart';

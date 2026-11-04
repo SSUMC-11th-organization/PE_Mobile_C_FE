@@ -1,9 +1,13 @@
 // 회원가입 화면 구현
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
+import '../view_models/sign_up_view_model.dart';
+import '../widgets/movielog_button.dart';
 
 const _background = AppColors.warmWhite;
 const _primary = AppColors.violet;
@@ -15,7 +19,6 @@ const _fieldBackground = Color(0xFFF4F2EF);
 const _fieldBorder = Color(0xFFDCD6CD);
 const _errorBackground = Color(0xFFFAD9D9);
 const _errorColor = Color(0xFFB3261E);
-const _buttonDisabled = Color(0xFFCABEDD);
 
 final RegExp _emailRegex = RegExp(r'^[\w.+-]+@[\w-]+\.[A-Za-z]{2,}$');
 
@@ -82,6 +85,11 @@ class _SignupScreenState extends State<SignupScreen> {
     return '비밀번호는 8자 이상이어야 합니다.';
   }
 
+  // ViewModel이 확인 가능하다고 하고(canCheck), 형식도 맞을 때만 중복 확인 버튼 활성화
+  // (형식이 틀린 값으로 서버에 요청하지 않도록 화면에서 한 번 더 막음)
+  bool _canCheck(String text, String? formatError, bool canCheck) =>
+      canCheck && text.trim().isNotEmpty && formatError == null;
+
   bool get _isFormValid =>
       _validateNickname(_nicknameController.text) == null &&
       _validateEmail(_emailController.text) == null &&
@@ -89,11 +97,13 @@ class _SignupScreenState extends State<SignupScreen> {
       _nicknameController.text.isNotEmpty &&
       _emailController.text.isNotEmpty &&
       _passwordController.text.isNotEmpty &&
-      _agreed;
+      _agreed &&
+      context.read<SignUpViewModel>().isDuplicateCheckPassed;
 
   void _submit() {
     final isValid = _formKey.currentState?.validate() ?? false;
-    if (!isValid || !_agreed) {
+    final checked = context.read<SignUpViewModel>().isDuplicateCheckPassed;
+    if (!isValid || !_agreed || !checked) {
       setState(() {});
       return;
     }
@@ -120,23 +130,74 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 28),
                 const _WelcomeMessage(),
                 const SizedBox(height: 32),
-                _SignupTextField(
-                  label: '닉네임',
-                  hintText: '닉네임을 입력해주세요',
-                  controller: _nicknameController,
-                  focusNode: _nicknameFocus,
-                  nextFocusNode: _emailFocus,
-                  validator: _validateNickname,
+                Consumer<SignUpViewModel>(
+                  builder: (context, viewModel, child) {
+                    final nickname = _nicknameController.text;
+                    return _SignupTextField(
+                      label: '닉네임',
+                      hintText: '닉네임을 입력해주세요',
+                      controller: _nicknameController,
+                      focusNode: _nicknameFocus,
+                      nextFocusNode: _emailFocus,
+                      validator: _validateNickname,
+                      onChanged: viewModel.onNicknameChanged,
+                      serverErrorText: viewModel.nicknameErrorText,
+                      helperText:
+                          viewModel.nicknameCheckStatus == CheckStatus.available
+                          ? '사용할 수 있는 닉네임입니다.'
+                          : null,
+                      trailing: MovieLogButton(
+                        label: '중복 확인',
+                        width: 120,
+                        isLoading:
+                            viewModel.nicknameCheckStatus ==
+                            CheckStatus.checking,
+                        onPressed:
+                            _canCheck(
+                              nickname,
+                              _validateNickname(nickname),
+                              viewModel.canCheckNickname,
+                            )
+                            ? () => viewModel.checkNickname(nickname)
+                            : null,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
-                _SignupTextField(
-                  label: '이메일',
-                  hintText: '이메일 주소를 입력해주세요',
-                  controller: _emailController,
-                  focusNode: _emailFocus,
-                  nextFocusNode: _passwordFocus,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: _validateEmail,
+                Consumer<SignUpViewModel>(
+                  builder: (context, viewModel, child) {
+                    final email = _emailController.text;
+                    return _SignupTextField(
+                      label: '이메일',
+                      hintText: '이메일 주소를 입력해주세요',
+                      controller: _emailController,
+                      focusNode: _emailFocus,
+                      nextFocusNode: _passwordFocus,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: _validateEmail,
+                      onChanged: viewModel.onEmailChanged,
+                      serverErrorText: viewModel.emailErrorText,
+                      helperText:
+                          viewModel.emailCheckStatus == CheckStatus.available
+                          ? '사용할 수 있는 이메일입니다.'
+                          : null,
+                      trailing: MovieLogButton(
+                        label: '중복 확인',
+                        width: 120,
+                        isLoading:
+                            viewModel.emailCheckStatus == CheckStatus.checking,
+                        onPressed:
+                            _canCheck(
+                              email,
+                              _validateEmail(email),
+                              viewModel.canCheckEmail,
+                            )
+                            ? () => viewModel.checkEmail(email)
+                            : null,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
                 _SignupTextField(
@@ -155,21 +216,12 @@ class _SignupScreenState extends State<SignupScreen> {
                   onChanged: (value) => setState(() => _agreed = value),
                 ),
                 const SizedBox(height: 16),
-                SizedBox(
-                  height: 56,
-                  child: FilledButton(
+                // 중복 확인 결과가 바뀌면 가입하기 버튼 활성화도 다시 계산
+                Consumer<SignUpViewModel>(
+                  builder: (context, viewModel, child) => MovieLogButton(
+                    label: '가입하기',
+                    width: double.infinity, // 부모 너비만큼 가득
                     onPressed: _isFormValid ? _submit : null,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _primaryDark,
-                      disabledBackgroundColor: _buttonDisabled,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      '가입하기',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -251,6 +303,10 @@ class _SignupTextField extends StatelessWidget {
     this.keyboardType,
     this.isLast = false,
     this.onSubmitted,
+    this.onChanged,
+    this.serverErrorText,
+    this.helperText,
+    this.trailing,
   });
 
   final String label;
@@ -263,12 +319,81 @@ class _SignupTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool isLast;
   final VoidCallback? onSubmitted;
+  final ValueChanged<String>? onChanged;
+  // 서버 확인 결과 문구 (중복·통신 실패). 형식 오류가 있으면 형식 오류가 우선
+  final String? serverErrorText;
+  // 서버 확인 통과 문구 (사용 가능) — 입력란 아래에 표시
+  final String? helperText;
+  // 입력란 오른쪽에 붙는 위젯 (중복 확인 버튼)
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    final errorText = validator(controller.text);
+    final errorText = validator(controller.text) ?? serverErrorText;
     final hasError = errorText != null;
-    final isValid = !hasError && controller.text.isNotEmpty;
+    // 중복 확인이 필요한 칸은 '사용 가능'을 받아야 체크 표시
+    final isValid = trailing == null
+        ? !hasError && controller.text.isNotEmpty
+        : helperText != null;
+
+    final field = TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
+      onFieldSubmitted: (_) {
+        if (isLast) {
+          onSubmitted?.call();
+        } else if (nextFocusNode != null) {
+          FocusScope.of(context).requestFocus(nextFocusNode);
+        }
+      },
+      validator: validator,
+      onChanged: onChanged,
+      style: const TextStyle(fontSize: 16, color: _titleColor),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: const TextStyle(color: _hintColor),
+        // 형식 오류(validator)가 없을 때 ViewModel의 중복·실패 문구를 표시
+        errorText: serverErrorText,
+        filled: true,
+        fillColor: hasError ? _errorBackground : _fieldBackground,
+        suffixIcon: hasError
+            ? const Icon(Icons.error_outline, color: _errorColor)
+            : isValid
+            ? const Icon(Icons.check_circle, color: _primaryDark)
+            : null,
+        errorStyle: const TextStyle(fontSize: 13, color: _errorColor),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: hasError ? _errorColor : _fieldBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: hasError ? _errorColor : _fieldBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: hasError ? _errorColor : _primary,
+            width: 1.5,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _errorColor),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _errorColor, width: 1.5),
+        ),
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,65 +407,22 @@ class _SignupTextField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
-          onFieldSubmitted: (_) {
-            if (isLast) {
-              onSubmitted?.call();
-            } else if (nextFocusNode != null) {
-              FocusScope.of(context).requestFocus(nextFocusNode);
-            }
-          },
-          validator: validator,
-          style: const TextStyle(fontSize: 16, color: _titleColor),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: const TextStyle(color: _hintColor),
-            filled: true,
-            fillColor: hasError ? _errorBackground : _fieldBackground,
-            suffixIcon: hasError
-                ? const Icon(Icons.error_outline, color: _errorColor)
-                : isValid
-                ? const Icon(Icons.check_circle, color: _primaryDark)
-                : null,
-            errorStyle: const TextStyle(fontSize: 13, color: _errorColor),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: hasError ? _errorColor : _fieldBorder,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: hasError ? _errorColor : _fieldBorder,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: hasError ? _errorColor : _primary,
-                width: 1.5,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _errorColor),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _errorColor, width: 1.5),
-            ),
+        if (trailing == null)
+          field
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: field),
+              const SizedBox(width: 8),
+              trailing!,
+            ],
           ),
-        ),
+        if (helperText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(helperText!, style: AppTextStyles.bodySmall),
+          ),
       ],
     );
   }

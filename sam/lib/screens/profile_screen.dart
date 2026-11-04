@@ -1,6 +1,7 @@
 // 프로필 화면 구현
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
@@ -32,6 +33,8 @@ class ProfileScreen extends StatelessWidget {
               const _ProfileStats(),
               const SizedBox(height: AppSpacing.xl),
               const _FavoriteGenresSection(genres: _genres),
+              const SizedBox(height: AppSpacing.xl),
+              const _MyRatingsMenu(),
               const SizedBox(height: AppSpacing.md),
             ],
           ),
@@ -196,6 +199,19 @@ class _FavoriteGenresSection extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _MyRatingsMenu extends StatelessWidget {
+  const _MyRatingsMenu();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: const Text('내가 등록한 평점'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push('/my/ratings'),
     );
   }
 }

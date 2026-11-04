@@ -1,7 +1,7 @@
 // 영화 포스터 2열 그리드 위젯
 import 'package:flutter/material.dart';
 
-import '../models/tmdb_movie_dto.dart';
+import '../data/models/tmdb_movie_dto.dart';
 import '../theme/app_theme.dart';
 import 'movie_poster_card.dart';
 

@@ -1,7 +1,7 @@
 // 영화 포스터 이미지 위젯 (포스터가 없거나 로드에 실패하면 placeholder 표시)
 import 'package:flutter/material.dart';
 
-import '../models/movie.dart';
+import '../data/models/movie.dart';
 import '../theme/app_colors.dart';
 
 class MoviePosterImage extends StatelessWidget {
