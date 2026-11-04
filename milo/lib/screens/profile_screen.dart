@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:movielog/theme/app_colors.dart';
 import 'package:movielog/theme/app_text_styles.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,15 +34,37 @@ class ProfileBody extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const ProfileHeader(),
-          const SizedBox(height: 32),
-          const ProfileStat(),
-          const SizedBox(height: 32),
-          const FavoriteGenres(),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const ProfileHeader(),
+            const SizedBox(height: 32),
+            const ProfileStat(),
+            const SizedBox(height: 24),
+            ListTile(
+              onTap: () => context.push('/my/ratings'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: AppColors.outline, width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              title: const Text('내가 등록한 평점'),
+              titleTextStyle: AppTextStyles.titleMedium.copyWith(
+                color: AppColors.onSurface,
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 32),
+            const FavoriteGenres(),
+          ],
+        ),
       ),
     );
   }

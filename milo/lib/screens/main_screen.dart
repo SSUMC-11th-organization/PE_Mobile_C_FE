@@ -3,21 +3,34 @@ import 'package:go_router/go_router.dart';
 import 'package:movielog/theme/app_colors.dart';
 
 class MainScreen extends StatelessWidget {
-  const MainScreen({super.key, required this.navigationShell});
+  const MainScreen({
+    super.key,
+    required this.currentIndex,
+    required this.child,
+  });
 
-  final StatefulNavigationShell navigationShell;
+  // const MainScreen({super.key, required this.navigationShell});
+  // final StatefulNavigationShell navigationShell;
 
-  void _onDestinationSelected(int index) {
-    navigationShell.goBranch(
-      index,
-      initialLocation: index == navigationShell.currentIndex,
-    );
+  final int currentIndex;
+  final Widget child;
+
+  static const _paths = ['/home', '/movies', '/my'];
+
+  void _onDestinationSelected(BuildContext context, int index) {
+    // navigationShell.goBranch(
+    //   index,
+    //   initialLocation: index == navigationShell.currentIndex,
+    // );
+    if (index == currentIndex) return;
+    context.go(_paths[index]);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: navigationShell,
+      // body: navigationShell,
+      body: child,
       bottomNavigationBar: SafeArea(
         child: Container(
           height: 80,
@@ -40,22 +53,22 @@ class MainScreen extends StatelessWidget {
                 icon: Icons.home_outlined,
                 selectedIcon: Icons.home,
                 label: '홈',
-                isSelected: navigationShell.currentIndex == 0,
-                onTap: () => _onDestinationSelected(0),
+                isSelected: currentIndex == 0,
+                onTap: () => _onDestinationSelected(context, 0),
               ),
               _NavItem(
                 icon: Icons.movie_outlined,
                 selectedIcon: Icons.movie,
                 label: '영화',
-                isSelected: navigationShell.currentIndex == 1,
-                onTap: () => _onDestinationSelected(1),
+                isSelected: currentIndex == 1,
+                onTap: () => _onDestinationSelected(context, 1),
               ),
               _NavItem(
                 icon: Icons.person_outline,
                 selectedIcon: Icons.person,
                 label: '마이',
-                isSelected: navigationShell.currentIndex == 2,
-                onTap: () => _onDestinationSelected(2),
+                isSelected: currentIndex == 2,
+                onTap: () => _onDestinationSelected(context, 2),
               ),
             ],
           ),
