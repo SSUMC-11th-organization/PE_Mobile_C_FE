@@ -5,6 +5,7 @@ import '../../widgets/profile/edit_profile_button.dart';
 import '../../widgets/profile/favorite_genres.dart';
 import '../../widgets/profile/profile_header.dart';
 import '../../widgets/profile/stat_item.dart';
+import '../../widgets/profile/member_ratings.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -47,6 +48,8 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 32),
 
                 const FavoriteGenres(),
+                const SizedBox(height: 32),
+                const MemberRatings(memberId: 1),
               ],
             ),
           ),
