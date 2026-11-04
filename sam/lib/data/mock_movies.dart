@@ -1,5 +1,5 @@
 // 영화 목 데이터
-import '../models/movie.dart';
+import 'models/movie.dart';
 
 const movies = [
   Movie(

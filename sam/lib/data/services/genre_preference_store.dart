@@ -2,7 +2,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GenrePreferenceStore {
-  static const _lastGenreKey = 'last_selected_genre';
+  static const _lastGenreIdKey = 'last_selected_genre_id';
 
   SharedPreferencesAsync? _preferences;
 
@@ -10,7 +10,10 @@ class GenrePreferenceStore {
   SharedPreferencesAsync get _prefs =>
       _preferences ??= SharedPreferencesAsync();
 
-  Future<String?> load() => _prefs.getString(_lastGenreKey);
+  // TMDB 장르 id, '전체'는 null
+  Future<int?> load() => _prefs.getInt(_lastGenreIdKey);
 
-  Future<void> save(String genre) => _prefs.setString(_lastGenreKey, genre);
+  Future<void> save(int? genreId) => genreId == null
+      ? _prefs.remove(_lastGenreIdKey)
+      : _prefs.setInt(_lastGenreIdKey, genreId);
 }

@@ -1,77 +1,20 @@
 // 영화 목록 화면 구현
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 
-import '../models/movie.dart';
-import '../services/fake_movie_service.dart';
-import '../services/genre_preference_store.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../view_models/movie_list_view_model.dart';
 import '../widgets/common_app_bar.dart';
-import '../widgets/empty_view.dart';
-import '../widgets/error_view.dart';
-import '../widgets/loading_view.dart';
 import '../widgets/movie_grid.dart';
+import '../widgets/movie_list_status_views.dart';
 
-const _allGenres = '전체';
-
-class MovieListScreen extends StatefulWidget {
-  const MovieListScreen({
-    super.key,
-    this.service = const FakeMovieService(),
-    this.mode = MovieLoadMode.success,
-    this.genreStore,
-  });
-
-  final FakeMovieService service;
-  final MovieLoadMode mode;
-  final GenrePreferenceStore? genreStore;
-
-  @override
-  State<MovieListScreen> createState() => _MovieListScreenState();
-}
-
-class _MovieListScreenState extends State<MovieListScreen> {
-  late final GenrePreferenceStore _genreStore =
-      widget.genreStore ?? GenrePreferenceStore();
-  String _selectedGenre = _allGenres;
-  bool _genreSelectedByUser = false;
-  late Future<List<Movie>> _moviesFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMovies();
-    _restoreGenre();
-  }
-
-  Future<void> _restoreGenre() async {
-    try {
-      final savedGenre = await _genreStore.load();
-      // 복원 전에 사용자가 이미 고른 장르가 있으면 덮어쓰지 않음
-      if (savedGenre == null || !mounted || _genreSelectedByUser) return;
-      setState(() => _selectedGenre = savedGenre);
-    } catch (_) {
-      // 저장소를 읽지 못하면 '전체'로 시작
-    }
-  }
-
-  void _selectGenre(String genre) {
-    _genreSelectedByUser = true;
-    setState(() => _selectedGenre = genre);
-    unawaited(_genreStore.save(genre).catchError((Object _) {}));
-  }
-
-  void _loadMovies() {
-    _moviesFuture = widget.service.fetchMovies(mode: widget.mode);
-  }
+class MovieListScreen extends StatelessWidget {
+  const MovieListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final margin = AppSpacing.screenMargin(context);
-
     return Scaffold(
       appBar: CommonAppBar(
         title: '영화',
@@ -90,70 +33,80 @@ class _MovieListScreenState extends State<MovieListScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<Movie>>(
-        future: _moviesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const LoadingView();
-          }
-
-          if (snapshot.hasError) {
-            final error = snapshot.error;
-            return ErrorView(
-              message: error is MovieLoadException
-                  ? error.message
-                  : '알 수 없는 오류가 발생했습니다.',
-              onRetry: () => setState(_loadMovies),
-            );
-          }
-
-          final movies = snapshot.data ?? const <Movie>[];
-          if (movies.isEmpty) {
-            return const EmptyView(message: '표시할 영화가 없습니다.');
-          }
-
-          return _buildMovieList(movies, margin);
-        },
-      ),
-    );
-  }
-
-  Widget _buildMovieList(List<Movie> movies, double margin) {
-    final genres = [
-      _allGenres,
-      ...{for (final movie in movies) movie.genre},
-    ];
-    // 저장된 장르가 받아온 목록에 없으면 '전체'로 표시
-    final selectedGenre = genres.contains(_selectedGenre)
-        ? _selectedGenre
-        : _allGenres;
-    final filteredMovies = selectedGenre == _allGenres
-        ? movies
-        : movies.where((movie) => movie.genre == selectedGenre).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 48,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: margin),
-            itemCount: genres.length,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-            itemBuilder: (context, index) {
-              final genre = genres[index];
-              return _GenreChip(
-                label: genre,
-                selected: genre == selectedGenre,
-                onSelected: () => _selectGenre(genre),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Consumer<MovieListViewModel>(
+            builder: (context, viewModel, child) {
+              // 장르 목록을 받기 전(첫 로딩·장르 API 실패)에는 Chip을 숨김
+              if (viewModel.genres.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: _GenreChips(viewModel: viewModel),
               );
             },
           ),
+          Expanded(
+            child: Consumer<MovieListViewModel>(
+              builder: (context, viewModel, child) {
+                return switch (viewModel.status) {
+                  MovieListLoadStatus.idle ||
+                  MovieListLoadStatus.loading => const MovieListLoading(),
+                  MovieListLoadStatus.error => MovieListError(
+                    message: viewModel.message,
+                    // 장르 목록부터 실패했으면 처음부터, 아니면 선택한 장르로 다시 요청
+                    onRetry: () => viewModel.genres.isEmpty
+                        ? viewModel.loadInitial()
+                        : viewModel.selectGenre(viewModel.selectedGenreId),
+                  ),
+                  MovieListLoadStatus.empty => const MovieListEmpty(),
+                  MovieListLoadStatus.success => MovieGrid(
+                    movies: viewModel.movies,
+                  ),
+                };
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GenreChips extends StatelessWidget {
+  const _GenreChips({required this.viewModel});
+
+  final MovieListViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    // '전체'는 장르 id null
+    final chips = <(int?, String)>[
+      (null, '전체'),
+      for (final genre in viewModel.genres) (genre.id, genre.name),
+    ];
+
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenMargin(context),
         ),
-        const SizedBox(height: AppSpacing.md),
-        Expanded(child: MovieGrid(movies: filteredMovies)),
-      ],
+        itemCount: chips.length,
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+        itemBuilder: (context, index) {
+          final (genreId, name) = chips[index];
+          return _GenreChip(
+            label: name,
+            selected: genreId == viewModel.selectedGenreId,
+            // 요청 중에는 null을 넘겨 Chip을 비활성화 (장르 변경 불가)
+            onSelected: viewModel.status == MovieListLoadStatus.loading
+                ? null
+                : () => viewModel.selectGenre(genreId),
+          );
+        },
+      ),
     );
   }
 }
@@ -167,19 +120,23 @@ class _GenreChip extends StatelessWidget {
 
   final String label;
   final bool selected;
-  final VoidCallback onSelected;
+  final VoidCallback? onSelected;
 
   @override
   Widget build(BuildContext context) {
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      onSelected: (_) => onSelected(),
+      onSelected: onSelected == null ? null : (_) => onSelected!(),
       showCheckmark: false,
       side: BorderSide.none,
       shape: const StadiumBorder(),
       backgroundColor: AppColors.black.withValues(alpha: 0.08),
       selectedColor: AppColors.violet,
+      // 요청 중(비활성) 상태에서도 선택한 장르가 구분되도록
+      disabledColor: selected
+          ? AppColors.violet.withValues(alpha: 0.5)
+          : AppColors.black.withValues(alpha: 0.04),
       labelStyle: TextStyle(
         fontWeight: FontWeight.w600,
         color: selected ? AppColors.white : AppColors.black,
