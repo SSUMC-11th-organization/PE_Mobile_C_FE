@@ -18,25 +18,22 @@ class TmdbLoggingInterceptor extends Interceptor {
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    debugPrint('[TMDB 응답] ${response.statusCode} ${response.requestOptions.uri}');
+    debugPrint(
+      '[TMDB 응답] ${response.statusCode} ${response.requestOptions.uri}',
+    );
     debugPrint('[TMDB 응답 Body] ${response.data}');
     handler.next(response);
   }
 
   @override
-  void onError(
-      DioException err,
-      ErrorInterceptorHandler handler,
-      ) {
+  void onError(DioException err, ErrorInterceptorHandler handler) {
     debugPrint(
       '[TMDB 오류] '
-          'status=${err.response?.statusCode ?? '응답 없음'} '
-          '${err.requestOptions.uri}',
+      'status=${err.response?.statusCode ?? '응답 없음'} '
+      '${err.requestOptions.uri}',
     );
 
-    debugPrint(
-      '[TMDB 오류 유형] ${err.type}',
-    );
+    debugPrint('[TMDB 오류 유형] ${err.type}');
 
     handler.next(err);
   }

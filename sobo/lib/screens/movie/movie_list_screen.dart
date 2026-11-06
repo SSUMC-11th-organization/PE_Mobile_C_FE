@@ -17,8 +17,7 @@ class MovieListScreen extends StatelessWidget {
       appBar: const CommonAppBar(title: '영화'),
       body: Consumer<MovieListViewModel>(
         builder: (context, viewModel, child) {
-          final isLoading =
-              viewModel.status == MovieListLoadStatus.loading;
+          final isLoading = viewModel.status == MovieListLoadStatus.loading;
 
           return Column(
             children: [
@@ -36,27 +35,24 @@ class MovieListScreen extends StatelessWidget {
                       onSelected: isLoading
                           ? null
                           : (_) {
-                        context
-                            .read<MovieListViewModel>()
-                            .selectGenre(null);
-                      },
+                              context.read<MovieListViewModel>().selectGenre(
+                                null,
+                              );
+                            },
                     ),
                     for (final genre in viewModel.genres)
                       Padding(
                         padding: const EdgeInsets.only(left: 8),
                         child: ChoiceChip(
                           label: Text(genre.name),
-                          selected:
-                          viewModel.selectedGenreId == genre.id,
+                          selected: viewModel.selectedGenreId == genre.id,
                           onSelected: isLoading
                               ? null
                               : (selected) {
-                            context
-                                .read<MovieListViewModel>()
-                                .selectGenre(
-                              selected ? genre.id : null,
-                            );
-                          },
+                                  context
+                                      .read<MovieListViewModel>()
+                                      .selectGenre(selected ? genre.id : null);
+                                },
                         ),
                       ),
                   ],
@@ -65,9 +61,7 @@ class MovieListScreen extends StatelessWidget {
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () {
-                    return context
-                        .read<MovieListViewModel>()
-                        .loadInitial();
+                    return context.read<MovieListViewModel>().loadInitial();
                   },
                   child: _buildContent(context, viewModel),
                 ),
@@ -79,10 +73,7 @@ class MovieListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(
-      BuildContext context,
-      MovieListViewModel viewModel,
-      ) {
+  Widget _buildContent(BuildContext context, MovieListViewModel viewModel) {
     switch (viewModel.status) {
       case MovieListLoadStatus.idle:
       case MovieListLoadStatus.loading:
@@ -98,26 +89,17 @@ class MovieListScreen extends StatelessWidget {
         );
 
       case MovieListLoadStatus.empty:
-        return _scrollableStatus(
-          const MovieListEmpty(),
-        );
+        return _scrollableStatus(const MovieListEmpty());
 
       case MovieListLoadStatus.success:
-        return MovieGrid(
-          movies: viewModel.movies,
-        );
+        return MovieGrid(movies: viewModel.movies);
     }
   }
 
   Widget _scrollableStatus(Widget child) {
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: child,
-        ),
-      ],
+      slivers: [SliverFillRemaining(hasScrollBody: false, child: child)],
     );
   }
 }

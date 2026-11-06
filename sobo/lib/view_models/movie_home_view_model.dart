@@ -3,13 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../data/models/tmdb_movie_dto.dart';
 import '../services/tmdb_movie_service.dart';
 
-enum MovieHomeLoadStatus {
-  idle,
-  loading,
-  success,
-  empty,
-  error,
-}
+enum MovieHomeLoadStatus { idle, loading, success, empty, error }
 
 class MovieHomeViewModel extends ChangeNotifier {
   MovieHomeViewModel(this._service);

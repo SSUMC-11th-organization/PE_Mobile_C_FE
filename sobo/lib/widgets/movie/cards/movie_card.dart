@@ -5,10 +5,7 @@ import '../../../data/models/tmdb_movie_dto.dart';
 import '../../tmdb_poster_image.dart';
 
 class MovieCard extends StatelessWidget {
-  const MovieCard({
-    super.key,
-    required this.movie,
-  });
+  const MovieCard({super.key, required this.movie});
 
   final TmdbMovieDto movie;
 
@@ -26,10 +23,7 @@ class MovieCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        context.push(
-          '/movies/${movie.id}',
-          extra: movie,
-        );
+        context.push('/movies/${movie.id}', extra: movie);
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
@@ -52,9 +46,7 @@ class MovieCard extends StatelessWidget {
                     movie.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -64,15 +56,9 @@ class MovieCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.star,
-                        size: 16,
-                        color: Colors.amber,
-                      ),
+                      const Icon(Icons.star, size: 16, color: Colors.amber),
                       const SizedBox(width: 4),
-                      Text(
-                        '${movie.voteAverage.toStringAsFixed(1)} / 10',
-                      ),
+                      Text('${movie.voteAverage.toStringAsFixed(1)} / 10'),
                     ],
                   ),
                 ],

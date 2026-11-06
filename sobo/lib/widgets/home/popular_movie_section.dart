@@ -5,10 +5,7 @@ import '../../data/models/tmdb_movie_dto.dart';
 import '../tmdb_poster_image.dart';
 
 class PopularMovieSection extends StatelessWidget {
-  const PopularMovieSection({
-    super.key,
-    required this.movies,
-  });
+  const PopularMovieSection({super.key, required this.movies});
 
   final List<TmdbMovieDto> movies;
 
@@ -22,10 +19,7 @@ class PopularMovieSection extends StatelessWidget {
             const Expanded(
               child: Text(
                 '인기 영화',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
             ),
             TextButton(
@@ -40,8 +34,7 @@ class PopularMovieSection extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: movies.length,
-            separatorBuilder: (context, index) =>
-            const SizedBox(width: 12),
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final movie = movies[index];
               final releaseDate = movie.releaseDate ?? '';
@@ -50,10 +43,7 @@ class PopularMovieSection extends StatelessWidget {
                   : '';
 
               return GestureDetector(
-                onTap: () => context.push(
-                  '/movies/${movie.id}',
-                  extra: movie,
-                ),
+                onTap: () => context.push('/movies/${movie.id}', extra: movie),
                 child: SizedBox(
                   width: 148,
                   child: Column(

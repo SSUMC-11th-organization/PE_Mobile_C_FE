@@ -30,10 +30,7 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 32),
             const Text(
               '오늘은 어떤\n영화를 볼까요?',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
             Consumer<MovieHomeViewModel>(
@@ -43,9 +40,7 @@ class HomeScreen extends StatelessWidget {
                   case MovieHomeLoadStatus.loading:
                     return const SizedBox(
                       height: 220,
-                      child: Center(
-                        child: CircularProgressIndicator(),
-                      ),
+                      child: Center(child: CircularProgressIndicator()),
                     );
 
                   case MovieHomeLoadStatus.error:
@@ -53,16 +48,11 @@ class HomeScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Column(
                         children: [
-                          Text(
-                            viewModel.message ??
-                                '인기 영화를 불러오지 못했어요.',
-                          ),
+                          Text(viewModel.message ?? '인기 영화를 불러오지 못했어요.'),
                           const SizedBox(height: 12),
                           FilledButton(
                             onPressed: () {
-                              context
-                                  .read<MovieHomeViewModel>()
-                                  .loadPopular();
+                              context.read<MovieHomeViewModel>().loadPopular();
                             },
                             child: const Text('다시 시도'),
                           ),
@@ -73,9 +63,7 @@ class HomeScreen extends StatelessWidget {
                   case MovieHomeLoadStatus.empty:
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 32),
-                      child: Center(
-                        child: Text('인기 영화가 없습니다.'),
-                      ),
+                      child: Center(child: Text('인기 영화가 없습니다.')),
                     );
 
                   case MovieHomeLoadStatus.success:
@@ -87,9 +75,7 @@ class HomeScreen extends StatelessWidget {
                           viewModel.popularMovies.first,
                         ),
                         const SizedBox(height: 32),
-                        PopularMovieSection(
-                          movies: viewModel.popularMovies,
-                        ),
+                        PopularMovieSection(movies: viewModel.popularMovies),
                       ],
                     );
                 }
@@ -101,15 +87,9 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeaturedMovie(
-      BuildContext context,
-      TmdbMovieDto movie,
-      ) {
+  Widget _buildFeaturedMovie(BuildContext context, TmdbMovieDto movie) {
     return GestureDetector(
-      onTap: () => context.push(
-        '/movies/${movie.id}',
-        extra: movie,
-      ),
+      onTap: () => context.push('/movies/${movie.id}', extra: movie),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: SizedBox(
@@ -127,10 +107,7 @@ class HomeScreen extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black87,
-                    ],
+                    colors: [Colors.transparent, Colors.black87],
                   ),
                 ),
               ),

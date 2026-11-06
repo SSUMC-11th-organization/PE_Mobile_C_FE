@@ -6,16 +6,12 @@ import '../../widgets/movie/ratings/rating_dialog.dart';
 import '../../widgets/tmdb_poster_image.dart';
 
 class MovieDetailScreen extends StatefulWidget {
-  const MovieDetailScreen({
-    super.key,
-    required this.movie,
-  });
+  const MovieDetailScreen({super.key, required this.movie});
 
   final TmdbMovieDto movie;
 
   @override
-  State<MovieDetailScreen> createState() =>
-      _MovieDetailScreenState();
+  State<MovieDetailScreen> createState() => _MovieDetailScreenState();
 }
 
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
@@ -29,11 +25,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          isFavorite
-              ? '즐겨찾기에 추가했어요.'
-              : '즐겨찾기를 해제했어요.',
-        ),
+        content: Text(isFavorite ? '즐겨찾기에 추가했어요.' : '즐겨찾기를 해제했어요.'),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -61,15 +53,12 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     final movie = widget.movie;
     final releaseDate = movie.releaseDate;
 
-    final releaseText =
-    releaseDate == null || releaseDate.isEmpty
+    final releaseText = releaseDate == null || releaseDate.isEmpty
         ? '개봉일 미정'
         : releaseDate;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('영화 상세'),
-      ),
+      appBar: AppBar(title: const Text('영화 상세')),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,25 +93,17 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                         itemCount: 5,
                         itemSize: 24,
                         itemBuilder: (context, index) {
-                          return const Icon(
-                            Icons.star,
-                            color: Colors.amber,
-                          );
+                          return const Icon(Icons.star, color: Colors.amber);
                         },
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        '${movie.voteAverage.toStringAsFixed(1)} / 10',
-                      ),
+                      Text('${movie.voteAverage.toStringAsFixed(1)} / 10'),
                     ],
                   ),
                   const SizedBox(height: 24),
                   const Text(
                     '줄거리',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -134,7 +115,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                     const SizedBox(height: 24),
                     Text(
                       '내 별점: '
-                          '${selectedRating!.toStringAsFixed(1)} / 5',
+                      '${selectedRating!.toStringAsFixed(1)} / 5',
                     ),
                   ],
                 ],
@@ -152,9 +133,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _toggleFavorite,
                   icon: Icon(
-                    isFavorite
-                        ? Icons.bookmark
-                        : Icons.bookmark_border,
+                    isFavorite ? Icons.bookmark : Icons.bookmark_border,
                   ),
                   label: const Text('즐겨찾기'),
                 ),
