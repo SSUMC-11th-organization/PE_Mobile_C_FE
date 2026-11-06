@@ -4,10 +4,7 @@ import '../../../data/models/tmdb_movie_dto.dart';
 import 'movie_card.dart';
 
 class MovieGrid extends StatelessWidget {
-  const MovieGrid({
-    super.key,
-    required this.movies,
-  });
+  const MovieGrid({super.key, required this.movies});
 
   final List<TmdbMovieDto> movies;
 
@@ -24,9 +21,7 @@ class MovieGrid extends StatelessWidget {
         childAspectRatio: 0.6,
       ),
       itemBuilder: (context, index) {
-        return MovieCard(
-          movie: movies[index],
-        );
+        return MovieCard(movie: movies[index]);
       },
     );
   }

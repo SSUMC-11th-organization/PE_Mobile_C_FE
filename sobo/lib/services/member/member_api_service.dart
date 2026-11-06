@@ -11,9 +11,7 @@ class MemberApiService {
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
-      throw Exception(
-        'HTTP ${response.statusCode}: ${response.body}',
-      );
+      throw Exception('HTTP ${response.statusCode}: ${response.body}');
     }
 
     return jsonDecode(utf8.decode(response.bodyBytes));
@@ -28,16 +26,12 @@ class MemberApiService {
   }
 
   static Future<bool> checkEmail(String email) async {
-    final data = await _get(
-      '/members/email/${Uri.encodeComponent(email)}',
-    );
+    final data = await _get('/members/email/${Uri.encodeComponent(email)}');
 
     return data['available'] as bool;
   }
 
-  static Future<List<Map<String, dynamic>>> getRatings(
-      int memberId,
-      ) async {
+  static Future<List<Map<String, dynamic>>> getRatings(int memberId) async {
     final data = await _get('/members/$memberId/ratings');
 
     return (data as List)
