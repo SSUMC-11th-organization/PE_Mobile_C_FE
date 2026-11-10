@@ -1,16 +1,17 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:movielog/data/models/tmdb_movie_dto.dart';
 import 'package:movielog/data/services/rating_api_service.dart';
 import 'package:movielog/data/services/tmdb_movie_service.dart';
 import 'package:movielog/screens/home_screen.dart';
 import 'package:movielog/screens/main_screen.dart';
-import 'package:movielog/screens/movie_detail_screen.dart';
+import 'package:movielog/screens/movie_detail_loader.dart';
 import 'package:movielog/screens/movie_list_screen.dart';
 import 'package:movielog/screens/my_page_screen.dart';
 import 'package:movielog/screens/my_rating_screen.dart';
 import 'package:movielog/screens/register_screen.dart';
 import 'package:movielog/screens/start_screen.dart';
-import 'package:movielog/view_models/movie_detail_view_model.dart';
+import 'package:movielog/view_models/learning_member_session.dart';
 import 'package:movielog/view_models/movie_home_view_model.dart';
 import 'package:movielog/view_models/movie_list_view_model.dart';
 import 'package:movielog/view_models/my_ratings_view_model.dart';
@@ -69,13 +70,20 @@ class AppRouter {
               GoRoute(
                 path: ':movieId',
                 builder: (context, state) {
-                  final movieId = int.parse(state.pathParameters['movieId']!);
-                  return ChangeNotifierProvider<MovieDetailViewModel>(
-                    create: (context) => MovieDetailViewModel(
-                      context.read<TmdbMovieService>(),
-                      movieId,
-                    )..load(),
-                    child: MovieDetailScreen(movieId: movieId),
+                  final id = int.tryParse(
+                    state.pathParameters['movieId'] ?? '',
+                  );
+                  if (id == null || id < 1) {
+                    return const Scaffold(
+                      body: Center(child: Text('영화 ID가 올바르지 않습니다.')),
+                    );
+                  }
+                  final extra = state.extra;
+                  return MovieDetailLoader(
+                    movieId: id,
+                    initialMovie: extra is TmdbMovieDto && extra.id == id
+                        ? extra
+                        : null,
                   );
                 },
               ),
@@ -88,15 +96,27 @@ class AppRouter {
               GoRoute(
                 path: 'ratings', // 최종 경로: /my/ratings
                 parentNavigatorKey: rootNavigatorKey, // 하단 NavigationBar를 가립니다.
-                builder: (context, state) =>
-                    ChangeNotifierProvider<MyRatingsViewModel>(
-                      create: (context) => MyRatingsViewModel(
-                        context.read<RatingApiService>(),
-                        context.read<TmdbMovieService>(),
-                        sampleMemberId, // 6주차는 학습용 ID 1입니다.
-                      )..load(),
-                      child: const MyRatingsScreen(),
-                    ),
+                builder: (context, state) {
+                  // 7주차: 가입 결과로 저장한 학습용 memberId를 사용합니다.
+                  final id = context.read<LearningMemberSession>().memberId;
+                  if (id == null) {
+                    return Scaffold(
+                      appBar: AppBar(
+                        centerTitle: true,
+                        title: const Text('내가 등록한 평점'),
+                      ),
+                      body: const Center(child: Text('학습용 회원가입이 필요합니다.')),
+                    );
+                  }
+                  return ChangeNotifierProvider<MyRatingsViewModel>(
+                    create: (context) => MyRatingsViewModel(
+                      context.read<RatingApiService>(),
+                      context.read<TmdbMovieService>(),
+                      id,
+                    )..load(),
+                    child: const MyRatingsScreen(),
+                  );
+                },
               ),
             ],
           ),

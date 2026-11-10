@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-// import 'package:movielog/models/movie.dart';
+import 'package:go_router/go_router.dart';
 import 'package:movielog/theme/app_colors.dart';
 import 'package:movielog/view_models/movie_detail_view_model.dart';
 import 'package:movielog/widgets/movie_card.dart';
 import 'package:movielog/widgets/rating_dialog.dart';
 import 'package:provider/provider.dart';
+import 'package:movielog/data/models/tmdb_movie_detail_dto.dart';
+import 'package:movielog/view_models/sign_up_view_model.dart';
 
 class MovieDetailScreen extends StatefulWidget {
-  const MovieDetailScreen({super.key, required this.movieId});
-
-  final int movieId;
+  const MovieDetailScreen({super.key});
 
   @override
   State<MovieDetailScreen> createState() => _MovieDetailScreenState();
@@ -21,49 +21,20 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // final movie = findMovieById(widget.movieId);
-    //
-    // if (movie == null) {
-    //   return Scaffold(
-    //     appBar: AppBar(),
-    //     body: const Center(child: Text('영화를 찾을 수 없습니다.')),
-    //   );
-    // }
-
     final viewModel = context.watch<MovieDetailViewModel>();
     final movie = viewModel.movie;
 
-    if (viewModel.status == MovieDetailLoadStatus.idle ||
-        viewModel.status == MovieDetailLoadStatus.loading) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (viewModel.status == MovieDetailLoadStatus.error || movie == null) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(viewModel.message),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: viewModel.load,
-                child: const Text('다시 시도'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    // 장르·상영 시간·투표 수는 상세 조회 DTO에만 있습니다.
+    // 목록에서 받은 기본 DTO(extra)로 열리면 detail은 null이라 해당 항목은 숨깁니다.
+    final detail = movie is TmdbMovieDetailDto ? movie : null;
+    final genres = detail?.genres ?? [];
+    final runtime = detail?.runtime;
+    final canRate = viewModel.memberId != null; // 회원가입 전에는 등록 버튼 비활성화
 
     final subtitle = [
-      movie.year,
-      if (movie.genres.isNotEmpty) movie.genres.map((g) => g.name).join(', '),
-      if (movie.runtime != null && movie.runtime! > 0) '${movie.runtime}분',
+      if (detail != null) detail.year,
+      if (genres.isNotEmpty) genres.map((g) => g.name).join(', '),
+      if (runtime != null && runtime > 0) '$runtime분',
     ].join(' • ');
 
     return Scaffold(
@@ -113,12 +84,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Hero Section
-                    // SizedBox(
-                    //   height: 585,
-                    //   width: double.infinity,
-                    //   child: Image.asset(movie.posterAsset, fit: BoxFit.cover),
-                    // ),
                     TmdbPosterImage(
                       posterPath: movie.posterPath,
                       width: double.infinity,
@@ -183,8 +148,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  // '(${movie.ratingCount})',
-                                  '(${movie.voteCount})',
+                                  detail == null ? '' : '(${detail.voteCount})',
                                   style: const TextStyle(
                                     fontFamily: 'Manrope',
                                     fontSize: 14,
@@ -194,45 +158,14 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                               ],
                             ),
                           ),
-                          // if (movie.tags.isNotEmpty)
-                          //   Padding(
-                          //     padding: const EdgeInsets.only(top: 20),
-                          //     child: Wrap(
-                          //       spacing: 8,
-                          //       children: movie.tags
-                          //           .map(
-                          //             (tag) => Container(
-                          //               padding: const EdgeInsets.symmetric(
-                          //                 horizontal: 12,
-                          //                 vertical: 4,
-                          //               ),
-                          //               decoration: BoxDecoration(
-                          //                 color: const Color(0xFFE3E2DF),
-                          //                 borderRadius: BorderRadius.circular(
-                          //                   9999,
-                          //                 ),
-                          //               ),
-                          //               child: Text(
-                          //                 tag,
-                          //                 style: const TextStyle(
-                          //                   fontFamily: 'Manrope',
-                          //                   fontSize: 14,
-                          //                   fontWeight: FontWeight.w500,
-                          //                   color: Color(0xFF494551),
-                          //                 ),
-                          //               ),
-                          //             ),
-                          //           )
-                          //           .toList(),
-                          //     ),
-                          //   ),
-                          if (movie.genres.isNotEmpty)
+
+                          if (genres.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 20),
                               child: Wrap(
                                 spacing: 8,
                                 runSpacing: 8,
-                                children: movie.genres
+                                children: genres
                                     .map(
                                       (genre) => Container(
                                         padding: const EdgeInsets.symmetric(
@@ -262,8 +195,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                         ],
                       ),
                     ),
-                    // Synopsis Section
-                    // if (movie.synopsis.isNotEmpty)
                     if (movie.overview.isNotEmpty)
                       Container(
                         width: double.infinity,
@@ -316,68 +247,109 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         ),
         child: SafeArea(
           top: false,
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() => isFavorite = !isFavorite);
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isFavorite
-                              ? 'Mock 즐겨찾기에 추가했습니다.'
-                              : 'Mock 즐겨찾기에서 삭제했습니다.',
-                        ),
-                        behavior: SnackBarBehavior.floating,
+              // 가입 전에는 평점을 남길 수 없으니 회원가입으로 안내합니다.
+              if (!canRate)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text('평점을 남기려면 먼저 학습용 회원가입이 필요합니다.'),
+                      TextButton(
+                        onPressed: () => context.push('/register'),
+                        child: const Text('회원가입'),
                       ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.primary),
-                    foregroundColor: AppColors.primary,
-                    minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9999),
-                    ),
+                    ],
                   ),
-                  icon: Icon(
-                    isFavorite ? Icons.bookmark : Icons.bookmark_border,
-                  ),
-                  label: const Text('즐겨찾기'),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final rating = await showDialog<double>(
-                      context: context,
-                      builder: (context) => const RatingDialog(),
-                    );
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() => isFavorite = !isFavorite);
 
-                    if (rating != null && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('평점 $rating점을 남겼습니다.'),
-                          behavior: SnackBarBehavior.floating,
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isFavorite
+                                  ? 'Mock 즐겨찾기에 추가했습니다.'
+                                  : 'Mock 즐겨찾기에서 삭제했습니다.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary),
+                        foregroundColor: AppColors.primary,
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9999),
                         ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9999),
+                      ),
+                      icon: Icon(
+                        isFavorite ? Icons.bookmark : Icons.bookmark_border,
+                      ),
+                      label: const Text('즐겨찾기'),
                     ),
-                    elevation: 1,
                   ),
-                  icon: const Icon(Icons.star_border),
-                  label: const Text('평점 남기기'),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: canRate
+                          ? () async {
+                              final saved = await showDialog<bool>(
+                                context: context,
+                                barrierDismissible:
+                                    false, // 저장 중 바깥 탭으로 닫히는 것도 막습니다.
+                                builder: (_) => RatingDialog(
+                                  onSubmit: (score, comment) async {
+                                    final viewModel = context
+                                        .read<MovieDetailViewModel>();
+                                    await viewModel.createRating(
+                                      score: score,
+                                      comment: comment,
+                                    );
+                                    if (viewModel.submitStatus !=
+                                        SubmitStatus.success) {
+                                      throw StateError(
+                                        viewModel.submitMessage ??
+                                            '저장에 실패했습니다.',
+                                      );
+                                    }
+                                  },
+                                ),
+                              );
+
+                              if (!context.mounted || saved != true) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    '평점을 등록했습니다. 마이페이지의 "내가 등록한 평점"에서 확인할 수 있습니다.',
+                                  ),
+                                ),
+                              );
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9999),
+                        ),
+                        elevation: 1,
+                      ),
+                      icon: const Icon(Icons.star_border),
+                      label: const Text('평점 남기기'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
