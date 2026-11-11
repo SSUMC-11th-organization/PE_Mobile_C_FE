@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:movielog/data/services/member_check_service.dart';
+import 'package:movielog/data/models/create_member_request.dart';
+import 'package:movielog/data/services/sign_up_service.dart';
 import 'package:movielog/theme/app_colors.dart';
 import 'package:movielog/theme/app_text_styles.dart';
-import 'package:movielog/view_models/signup_view_model.dart';
+import 'package:movielog/view_models/learning_member_session.dart';
+import 'package:movielog/view_models/sign_up_view_model.dart';
 import 'package:movielog/widgets/movielog_button.dart';
 import 'package:provider/provider.dart';
 
@@ -14,42 +16,51 @@ class RegisterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<SignUpViewModel>(
-      create: (context) => SignUpViewModel(context.read<MemberCheckService>()),
-      child: Scaffold(
-        backgroundColor: AppColors.surface,
-        appBar: AppBar(
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          toolbarHeight: 64,
-          centerTitle: true,
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: IconButton(
-              icon: SvgPicture.asset(
-                'assets/icons/arrow_back.svg',
-                width: 24,
-                height: 24,
-                colorFilter: ColorFilter.mode(
-                  AppColors.onSurfaceVariant,
-                  BlendMode.srcIn,
+      create: (context) => SignUpViewModel(context.read<SignUpService>()),
+      child: Consumer<SignUpViewModel>(
+        builder: (context, viewModel, child) {
+          return PopScope(
+            // 가입 요청 중에는 뒤로가기로 닫히지 않게 막습니다.
+            canPop: viewModel.submitStatus != SubmitStatus.submitting,
+            child: Scaffold(
+              backgroundColor: AppColors.surface,
+              appBar: AppBar(
+                backgroundColor: AppColors.surface,
+                elevation: 0,
+                toolbarHeight: 64,
+                centerTitle: true,
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: IconButton(
+                    icon: SvgPicture.asset(
+                      'assets/icons/arrow_back.svg',
+                      width: 24,
+                      height: 24,
+                      colorFilter: ColorFilter.mode(
+                        AppColors.onSurfaceVariant,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                    onPressed: () {}, // 아직 기능 없음
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(40, 40),
+                      shape: const CircleBorder(),
+                    ),
+                  ),
+                ),
+                title: Text(
+                  '회원가입',
+                  style: AppTextStyles.titleLarge.copyWith(
+                    color: AppColors.primary,
+                    fontSize: 24,
+                  ),
                 ),
               ),
-              onPressed: () {}, // 아직 기능 없음
-              style: IconButton.styleFrom(
-                minimumSize: const Size(40, 40),
-                shape: const CircleBorder(),
-              ),
+              body: child, // 아래 child가 들어옵니다.
             ),
-          ),
-          title: Text(
-            '회원가입',
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.primary,
-              fontSize: 24,
-            ),
-          ),
-        ),
-        body: const SafeArea(child: SignBody()),
+          );
+        },
+        child: const SafeArea(child: SignBody()), // 매번 다시 만들지 않는 고정 부분
       ),
     );
   }
@@ -120,9 +131,30 @@ class _SignUpFormState extends State<SignUpForm> {
     }
   }
 
-  void _onSubmit() {
-    if (_formKey.currentState!.validate()) {
-      context.go('/home');
+  Future<void> _onSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
+    final viewModel = context.read<SignUpViewModel>();
+    await viewModel.submit(
+      CreateMemberRequest(
+        email: emailController.text,
+        password: passwordController.text,
+        nickname: nicknameController.text,
+      ),
+    );
+    if (!mounted) return;
+    if (viewModel.submitStatus == SubmitStatus.success &&
+        viewModel.createdMemberId != null) {
+      debugPrint('가입 성공: memberId=${viewModel.createdMemberId}'); // 확인용
+      context.read<LearningMemberSession>().setMemberId(
+        viewModel.createdMemberId!,
+      );
+      context.go('/movies');
+      return;
+    }
+    final message = viewModel.snackbarMessage;
+    if (message != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -130,34 +162,27 @@ class _SignUpFormState extends State<SignUpForm> {
     required CheckStatus status,
     required String? errorText,
     required String availableText,
+    required String checkingText,
   }) {
-    if (status == CheckStatus.available) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          availableText,
-          style: const TextStyle(
-            fontFamily: 'Manrope',
-            fontSize: 12,
-            color: AppColors.primary,
-          ),
+    final (text, color) = switch (status) {
+      CheckStatus.checking => (checkingText, const Color(0xFF1565C0)),
+      CheckStatus.available => (availableText, const Color(0xFF2E7D32)),
+      CheckStatus.error => (errorText, Colors.red),
+      CheckStatus.duplicated || CheckStatus.idle => (null, Colors.transparent),
+    };
+    if (text == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontFamily: 'Manrope',
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
-      );
-    }
-    if (status == CheckStatus.error && errorText != null) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          errorText,
-          style: const TextStyle(
-            fontFamily: 'Manrope',
-            fontSize: 12,
-            color: Colors.red,
-          ),
-        ),
-      );
-    }
-    return const SizedBox.shrink();
+      ),
+    );
   }
 
   @override
@@ -201,6 +226,8 @@ class _SignUpFormState extends State<SignUpForm> {
                               if (nickname.isEmpty) return '닉네임을 입력해주세요.';
                               if (nickname.length < 2) {
                                 return '닉네임은 두 글자 이상 입력해주세요.';
+                              } else if (nickname.length > 12) {
+                                return '닉네임은 12자 이하로 입력해주세요.';
                               }
                               if (viewModel.nicknameCheckStatus ==
                                   CheckStatus.duplicated) {
@@ -218,7 +245,6 @@ class _SignUpFormState extends State<SignUpForm> {
                         ),
                         const SizedBox(width: 8),
                         Padding(
-                          // 라벨 높이만큼 내려서 입력창과 맞춥니다. 어긋나면 값만 조절하세요.
                           padding: const EdgeInsets.only(top: 24),
                           child: MovieLogButton(
                             label: '중복 확인',
@@ -227,7 +253,9 @@ class _SignUpFormState extends State<SignUpForm> {
                                 CheckStatus.checking,
                             onPressed:
                                 viewModel.canCheckNickname &&
-                                    nicknameController.text.trim().length >= 2
+                                    nicknameController.text.trim().length >=
+                                        2 &&
+                                    nicknameController.text.trim().length <= 12
                                 ? () async {
                                     await viewModel.checkNickname(
                                       nicknameController.text,
@@ -243,7 +271,8 @@ class _SignUpFormState extends State<SignUpForm> {
                     _checkMessage(
                       status: viewModel.nicknameCheckStatus,
                       errorText: viewModel.nicknameErrorText,
-                      availableText: '사용할 수 있는 닉네임입니다.',
+                      availableText: '사용 가능한 닉네임입니다.',
+                      checkingText: '닉네임 사용 가능 여부를 확인 중입니다.',
                     ),
                   ],
                 );
@@ -302,7 +331,9 @@ class _SignUpFormState extends State<SignUpForm> {
                                 CheckStatus.checking,
                             onPressed:
                                 viewModel.canCheckEmail &&
-                                    emailController.text.trim().length >= 2
+                                    _emailRegex.hasMatch(
+                                      emailController.text.trim(),
+                                    )
                                 ? () async {
                                     await viewModel.checkEmail(
                                       emailController.text,
@@ -318,7 +349,8 @@ class _SignUpFormState extends State<SignUpForm> {
                     _checkMessage(
                       status: viewModel.emailCheckStatus,
                       errorText: viewModel.emailErrorText,
-                      availableText: '사용할 수 있는 이메일입니다.',
+                      availableText: '사용 가능한 이메일입니다.',
+                      checkingText: '이메일 사용 가능 여부를 확인 중입니다.',
                     ),
                   ],
                 );
@@ -326,20 +358,23 @@ class _SignUpFormState extends State<SignUpForm> {
             ),
             const SizedBox(height: 16),
 
-            MovieLogTextFormField(
-              label: '비밀번호',
-              hint: '비밀번호를 입력해주세요',
-              controller: passwordController,
-              focusNode: passwordFocusNode,
-              obscureText: true,
-              textInputAction: TextInputAction.done,
-              validator: (value) {
-                final password = value ?? '';
-                if (password.isEmpty) return '비밀번호를 입력해주세요.';
-                if (password.length < 8) return '비밀번호는 8자 이상 입력해주세요.';
-                return null;
+            Consumer<SignUpViewModel>(
+              builder: (context, viewModel, child) {
+                return MovieLogTextFormField(
+                  label: '비밀번호',
+                  hint: '비밀번호를 입력해주세요',
+                  controller: passwordController,
+                  focusNode: passwordFocusNode,
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  errorText: viewModel.passwordErrorText,
+                  validator: validatePasswordFormat,
+                  onChanged: (_) {
+                    viewModel.onPasswordChanged();
+                    _updateFormValidity();
+                  },
+                );
               },
-              onChanged: (_) => _updateFormValidity(),
             ),
             const SizedBox(height: 144),
 
@@ -442,6 +477,7 @@ class MovieLogTextFormField extends StatefulWidget {
     this.onFieldSubmitted,
     this.needsVerification = false,
     this.isVerified = false,
+    this.errorText,
   });
 
   final String label;
@@ -456,6 +492,7 @@ class MovieLogTextFormField extends StatefulWidget {
   final void Function(String)? onFieldSubmitted;
   final bool needsVerification;
   final bool isVerified;
+  final String? errorText;
 
   @override
   State<MovieLogTextFormField> createState() => _MovieLogTextFormFieldState();
@@ -486,6 +523,7 @@ class _MovieLogTextFormFieldState extends State<MovieLogTextFormField> {
   @override
   Widget build(BuildContext context) {
     Widget? suffixIcon;
+    final showError = _hasError || widget.errorText != null;
 
     if (widget.obscureText) {
       suffixIcon = IconButton(
@@ -495,7 +533,7 @@ class _MovieLogTextFormFieldState extends State<MovieLogTextFormField> {
         ),
         onPressed: () => setState(() => _obscure = !_obscure),
       );
-    } else if (_hasError) {
+    } else if (showError) {
       suffixIcon = const Icon(Icons.error_outline, color: Colors.red);
     } else if (widget.needsVerification ? widget.isVerified : _hasValue) {
       suffixIcon = const Icon(Icons.check_circle, color: AppColors.primary);
@@ -524,6 +562,7 @@ class _MovieLogTextFormFieldState extends State<MovieLogTextFormField> {
             widget.onChanged?.call(value);
           },
           onFieldSubmitted: widget.onFieldSubmitted,
+          forceErrorText: widget.errorText,
           validator: (value) {
             final error = widget.validator?.call(value);
             _updateState(value);
@@ -535,7 +574,7 @@ class _MovieLogTextFormFieldState extends State<MovieLogTextFormField> {
               color: AppColors.hintText,
             ),
             filled: true,
-            fillColor: _hasError
+            fillColor: showError
                 ? Colors.red.withValues(alpha: 0.08)
                 : AppColors.surfaceContainer,
             contentPadding: const EdgeInsets.symmetric(
@@ -564,4 +603,17 @@ class _MovieLogTextFormFieldState extends State<MovieLogTextFormField> {
       ],
     );
   }
+}
+
+String? validatePasswordFormat(String? value) {
+  final password = value ?? '';
+  if (password.isEmpty) return '비밀번호를 입력해주세요.';
+  if (password.length < 8) return '비밀번호는 8자 이상 입력해주세요.';
+  if (!RegExp(r'[a-z]').hasMatch(password) ||
+      !RegExp(r'[A-Z]').hasMatch(password) ||
+      !RegExp(r'[0-9]').hasMatch(password) ||
+      !RegExp(r'[!@#$%^&*]').hasMatch(password)) {
+    return '소문자·대문자·숫자·특수문자(!@#\$%^&*)를 각각 하나 이상 \n포함해 주세요.';
+  }
+  return null;
 }

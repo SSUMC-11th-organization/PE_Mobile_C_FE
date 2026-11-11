@@ -1,44 +1,56 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:movielog/data/models/tmdb_movie_detail_dto.dart';
-import 'package:movielog/data/services/tmdb_movie_service.dart';
+import 'package:movielog/data/models/rating_request.dart';
+import 'package:movielog/data/models/tmdb_movie_dto.dart';
+import 'package:movielog/data/services/rating_api_service.dart';
+import 'package:movielog/view_models/sign_up_view_model.dart';
 
 enum MovieDetailLoadStatus { idle, loading, success, error }
 
+// lib/view_models/movie_detail_view_model.dart
 class MovieDetailViewModel extends ChangeNotifier {
-  MovieDetailViewModel(this._service, this.movieId);
-
-  final TmdbMovieService _service;
-  final int movieId;
-
-  TmdbMovieDetailDto? movie;
-  MovieDetailLoadStatus status = MovieDetailLoadStatus.idle;
-  String message = '';
+  MovieDetailViewModel(this._ratingService, this.memberId, this.movie);
+  final RatingApiService _ratingService;
+  final int? memberId; // 학습용 현재 회원. 로그인 인증은 아닙니다.
+  final TmdbMovieDto movie;
+  SubmitStatus submitStatus = SubmitStatus.idle;
+  String? submitMessage;
   bool _disposed = false;
+
+  Future<void> createRating({required int score, String? comment}) async {
+    final id = memberId;
+    if (id == null) {
+      submitStatus = SubmitStatus.error;
+      submitMessage = '먼저 회원가입을 완료해 주세요.';
+      notifyListeners();
+      return;
+    }
+    if (submitStatus == SubmitStatus.submitting) return;
+    submitStatus = SubmitStatus.submitting;
+    submitMessage = null;
+    notifyListeners();
+    try {
+      await _ratingService.createRating(
+        memberId: id,
+        request: CreateRatingRequest(
+          movieId: movie.id,
+          score: score,
+          comment: comment,
+        ),
+      );
+      if (_disposed) return;
+      submitStatus = SubmitStatus.success;
+    } on DioException catch (error) {
+      if (_disposed) return;
+      submitStatus = SubmitStatus.error;
+      submitMessage = writeErrorMessage(error);
+    }
+    if (!_disposed) notifyListeners();
+  }
 
   @override
   void dispose() {
     _disposed = true;
     super.dispose();
-  }
-
-  Future<void> load() async {
-    status = MovieDetailLoadStatus.loading;
-    notifyListeners();
-
-    try {
-      movie = await _service.fetchMovieDetail(movieId);
-      status = MovieDetailLoadStatus.success;
-    } on DioException catch (e) {
-      status = MovieDetailLoadStatus.error;
-      message = e.response?.statusCode == 404
-          ? '영화 정보를 찾을 수 없어요.'
-          : '영화 정보를 불러오지 못했어요.';
-    } catch (_) {
-      status = MovieDetailLoadStatus.error;
-      message = '알 수 없는 오류가 발생했어요.';
-    }
-
-    if (!_disposed) notifyListeners();
   }
 }
