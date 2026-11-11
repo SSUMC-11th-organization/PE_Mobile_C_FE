@@ -2,7 +2,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:movielog/data/services/member_check_service.dart';
+import 'package:movielog/data/models/create_member_request.dart';
+import 'package:movielog/data/services/sign_up_service.dart';
 import 'package:movielog/view_models/sign_up_view_model.dart';
 
 import 'helpers/fake_movielog.dart';
@@ -17,7 +18,7 @@ void main() {
 
   setUp(() {
     adapter = FakeMovieLogAdapter(server);
-    viewModel = SignUpViewModel(MemberCheckService(fakeDio(adapter)));
+    viewModel = SignUpViewModel(SignUpService(fakeDio(adapter)));
   });
 
   test('available nickname → available with helper text', () async {
@@ -99,5 +100,81 @@ void main() {
     viewModel.onEmailChanged('movie@example.com');
     await viewModel.checkEmail('movie@example.com');
     expect(viewModel.isDuplicateCheckPassed, isTrue);
+  });
+
+  group('submit', () {
+    const request = CreateMemberRequest(
+      email: ' movie@example.com ',
+      password: 'password123',
+      nickname: '무비러버',
+    );
+
+    test('stores the created memberId on success', () async {
+      adapter.route = (_) => (
+        201,
+        {
+          'isSuccess': true,
+          'code': 'COMMON201',
+          'message': '가입 완료',
+          'result': {
+            'memberId': 42,
+            'email': 'movie@example.com',
+            'nickname': '무비러버',
+          },
+        },
+      );
+
+      final future = viewModel.submit(request);
+      expect(viewModel.submitStatus, SubmitStatus.submitting);
+      await future;
+
+      final sent = adapter.requests.single;
+      expect(sent.method, 'POST');
+      expect(sent.path, '/v6/members');
+      expect(sent.data, {
+        'email': 'movie@example.com',
+        'password': 'password123',
+        'nickname': '무비러버',
+      });
+      expect(viewModel.submitStatus, SubmitStatus.success);
+      expect(viewModel.createdMemberId, 42);
+    });
+
+    test('a 400 password message goes under the password field', () async {
+      adapter.route = (_) => (
+        400,
+        {
+          'isSuccess': false,
+          'code': 'COMMON400',
+          'message': '비밀번호는 영문과 숫자를 포함해야 합니다.',
+        },
+      );
+      await viewModel.submit(request);
+
+      expect(viewModel.submitStatus, SubmitStatus.error);
+      expect(viewModel.passwordErrorText, '비밀번호는 영문과 숫자를 포함해야 합니다.');
+      expect(viewModel.snackbarMessage, isNull);
+
+      viewModel.onPasswordChanged();
+      expect(viewModel.passwordErrorText, isNull);
+    });
+
+    test('other failures become a snackbar message', () async {
+      adapter.route = (_) => (500, {'error': 'unexpected shape'});
+      await viewModel.submit(request);
+
+      expect(viewModel.submitStatus, SubmitStatus.error);
+      expect(viewModel.snackbarMessage, '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    });
+
+    test('a success without memberId is reported, not ignored', () async {
+      adapter.route = (_) =>
+          (201, {'isSuccess': true, 'code': 'COMMON201', 'message': '가입 완료'});
+      await viewModel.submit(request);
+
+      expect(viewModel.submitStatus, SubmitStatus.error);
+      expect(viewModel.createdMemberId, isNull);
+      expect(viewModel.snackbarMessage, contains('가입 결과를 확인하지 못했습니다'));
+    });
   });
 }

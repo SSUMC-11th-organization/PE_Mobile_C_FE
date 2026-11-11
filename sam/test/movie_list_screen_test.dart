@@ -6,13 +6,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:movielog/data/models/movie.dart';
+import 'package:movielog/data/services/rating_api_service.dart';
+import 'package:movielog/data/services/tmdb_movie_service.dart';
+import 'package:movielog/screens/movie_detail_loader.dart';
 import 'package:movielog/screens/movie_detail_screen.dart';
 import 'package:movielog/screens/movie_list_screen.dart';
 import 'package:movielog/theme/app_theme.dart';
+import 'package:movielog/view_models/learning_member_session.dart';
 import 'package:movielog/view_models/movie_list_view_model.dart';
 import 'package:movielog/widgets/movie_poster_card.dart';
 import 'package:provider/provider.dart';
 
+import 'helpers/fake_movielog.dart';
 import 'helpers/fake_tmdb.dart';
 
 // 장르 API는 액션·드라마, Discover는 장르마다 다른 영화 한 페이지를 돌려줌
@@ -171,25 +176,40 @@ void main() {
         ),
         GoRoute(
           path: '/movies/:movieId',
-          builder: (context, state) => MovieDetailScreen(
-            movieId: int.tryParse(state.pathParameters['movieId'] ?? ''),
-            movie: state.extra as Movie?,
+          builder: (context, state) => MovieDetailLoader(
+            movieId: int.parse(state.pathParameters['movieId']!),
+            initialMovie: state.extra as Movie?,
           ),
         ),
       ],
     );
     await tester.pumpWidget(
-      MaterialApp.router(theme: AppTheme.light, routerConfig: router),
+      MultiProvider(
+        providers: [
+          // 평점 Dialog가 열리도록 학습용 회원을 미리 넣어 둠
+          ChangeNotifierProvider(
+            create: (_) => LearningMemberSession()..setMemberId(1),
+          ),
+          Provider(
+            create: (_) => RatingApiService(
+              fakeDio(FakeMovieLogAdapter((_) => (201, {}))),
+            ),
+          ),
+          Provider<TmdbMovieService>(create: (_) => fakeTmdbService(adapter)),
+        ],
+        child: MaterialApp.router(theme: AppTheme.light, routerConfig: router),
+      ),
     );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('영화 2'));
     await tester.pumpAndSettle();
 
-    final detail = tester.widget<MovieDetailScreen>(
-      find.byType(MovieDetailScreen),
+    final loader = tester.widget<MovieDetailLoader>(
+      find.byType(MovieDetailLoader),
     );
-    expect(detail.movieId, 2);
+    expect(loader.movieId, 2);
+    expect(find.byType(MovieDetailScreen), findsOneWidget);
     expect(find.text('영화 2'), findsOneWidget);
 
     // 평점 Dialog까지 열리는지 확인
