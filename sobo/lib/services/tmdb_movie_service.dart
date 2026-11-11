@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../data/models/tmdb_genre_dto.dart';
+import '../data/models/tmdb_movie_dto.dart';
 import '../data/models/tmdb_movie_page.dart';
 
 class TmdbMovieService {
@@ -12,9 +13,7 @@ class TmdbMovieService {
       '/movie/popular',
       queryParameters: {'language': 'ko-KR', 'page': page},
     );
-    return TmdbMoviePageDto.fromJson(
-      response.data as Map<String, dynamic>,
-    );
+    return TmdbMoviePageDto.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<TmdbMoviePageDto> discoverMovies({
@@ -32,9 +31,7 @@ class TmdbMovieService {
         'with_genres': ?genreId,
       },
     );
-    return TmdbMoviePageDto.fromJson(
-      response.data as Map<String, dynamic>,
-    );
+    return TmdbMoviePageDto.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<List<TmdbGenreDto>> fetchGenres() async {
@@ -47,5 +44,23 @@ class TmdbMovieService {
     return genres
         .map((item) => TmdbGenreDto.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  // lib/data/services/tmdb_movie_service.dart 에 추가합니다.
+  Future<TmdbMovieDto> fetchMovieDetail(int movieId) async {
+    final response = await _dio.get(
+      '/movie/$movieId',
+      queryParameters: {'language': 'ko-KR'},
+    );
+    return TmdbMovieDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TmdbMovieDto?> findMovieById(int movieId) async {
+    try {
+      return await fetchMovieDetail(movieId);
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) return null;
+      rethrow;
+    }
   }
 }

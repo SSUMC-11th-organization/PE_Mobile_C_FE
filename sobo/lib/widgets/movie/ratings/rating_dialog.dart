@@ -28,9 +28,7 @@ class _RatingDialogState extends State<RatingDialog> {
     rating = widget.initialRating;
 
     if (kDebugMode) {
-      debugPrint(
-        '[평점 Dialog] movieId=${widget.movieId}',
-      );
+      debugPrint('[평점 Dialog] movieId=${widget.movieId}');
     }
   }
 
@@ -45,10 +43,7 @@ class _RatingDialogState extends State<RatingDialog> {
             Text(
               widget.movieTitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text('영화는 어떠셨나요?'),
@@ -78,8 +73,8 @@ class _RatingDialogState extends State<RatingDialog> {
                     if (kDebugMode) {
                       debugPrint(
                         '[평점 선택] '
-                            'movieId=${widget.movieId}, '
-                            'rating=$rating',
+                        'movieId=${widget.movieId}, '
+                        'rating=$rating',
                       );
                     }
 

@@ -4,13 +4,7 @@ import '../data/models/tmdb_genre_dto.dart';
 import '../data/models/tmdb_movie_dto.dart';
 import '../services/tmdb_movie_service.dart';
 
-enum MovieListLoadStatus {
-  idle,
-  loading,
-  success,
-  empty,
-  error,
-}
+enum MovieListLoadStatus { idle, loading, success, empty, error }
 
 class MovieListViewModel extends ChangeNotifier {
   MovieListViewModel(this._service);
@@ -27,9 +21,7 @@ class MovieListViewModel extends ChangeNotifier {
 
   bool _disposed = false;
 
-  Future<List<TmdbMovieDto>> fetchUpToThirtyMovies({
-    int? genreId,
-  }) async {
+  Future<List<TmdbMovieDto>> fetchUpToThirtyMovies({int? genreId}) async {
     final byId = <int, TmdbMovieDto>{};
 
     var pageNumber = 1;
@@ -49,8 +41,7 @@ class MovieListViewModel extends ChangeNotifier {
         if (byId.length == 30) break;
       }
 
-      hasNextPage =
-          pageNumber < page.totalPages && page.results.isNotEmpty;
+      hasNextPage = pageNumber < page.totalPages && page.results.isNotEmpty;
 
       pageNumber++;
     }
@@ -72,9 +63,7 @@ class MovieListViewModel extends ChangeNotifier {
 
       genres = loadedGenres;
 
-      final result = await fetchUpToThirtyMovies(
-        genreId: selectedGenreId,
-      );
+      final result = await fetchUpToThirtyMovies(genreId: selectedGenreId);
 
       if (_disposed) return;
 
@@ -102,9 +91,7 @@ class MovieListViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await fetchUpToThirtyMovies(
-        genreId: genreId,
-      );
+      final result = await fetchUpToThirtyMovies(genreId: genreId);
 
       if (_disposed) return;
 

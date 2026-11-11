@@ -5,10 +5,7 @@ import 'package:flutter/material.dart';
 import '../../services/member/member_api_service.dart';
 
 class MemberRatings extends StatefulWidget {
-  const MemberRatings({
-    super.key,
-    required this.memberId,
-  });
+  const MemberRatings({super.key, required this.memberId});
 
   final int memberId;
 
@@ -67,26 +64,18 @@ class _MemberRatingsState extends State<MemberRatings> {
           onPressed: loading ? null : _loadRatings,
           child: Text(loading ? '조회 중...' : '평점 조회'),
         ),
-        if (errorMessage.isNotEmpty)
-          Text(errorMessage),
+        if (errorMessage.isNotEmpty) Text(errorMessage),
         if (data != null) ...[
-          if (data.isEmpty)
-            const Text('등록된 평점이 없습니다.'),
+          if (data.isEmpty) const Text('등록된 평점이 없습니다.'),
           for (final rating in data)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(
-                '영화 ${rating['movieId']} · ${rating['score']}점',
-              ),
-              subtitle: Text(
-                rating['comment'] as String? ?? '코멘트 없음',
-              ),
+              title: Text('영화 ${rating['movieId']} · ${rating['score']}점'),
+              subtitle: Text(rating['comment'] as String? ?? '코멘트 없음'),
             ),
           const SizedBox(height: 8),
           const Text('서버 응답 JSON'),
-          SelectableText(
-            const JsonEncoder.withIndent('  ').convert(data),
-          ),
+          SelectableText(const JsonEncoder.withIndent('  ').convert(data)),
         ],
       ],
     );
