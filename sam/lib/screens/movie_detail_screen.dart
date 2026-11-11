@@ -3,24 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
-import '../data/mock_movies.dart';
 import '../data/models/movie.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
+import '../view_models/movie_detail_view_model.dart';
+import '../view_models/sign_up_view_model.dart' show SubmitStatus;
 import '../widgets/common_app_bar.dart';
 import '../widgets/movie_poster_image.dart';
-import '../widgets/movie_rating_input.dart';
+import '../widgets/rating_dialog.dart';
 
 const _averageRating = 4.5;
 
+// MovieDetailLoader가 영화를 준비한 뒤 MovieDetailViewModel과 함께 표시합니다.
 class MovieDetailScreen extends StatelessWidget {
-  const MovieDetailScreen({super.key, required this.movieId, this.movie});
-
-  final int? movieId;
-  // 목록·홈에서 넘겨준 TMDB 영화 (새로고침 등으로 없으면 목 데이터에서 찾음)
-  final Movie? movie;
+  const MovieDetailScreen({super.key});
 
   void _goBack(BuildContext context) {
     if (context.canPop()) {
@@ -32,7 +31,7 @@ class MovieDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final movie = this.movie ?? findMovieById(movieId);
+    final movie = context.read<MovieDetailViewModel>().movie;
 
     return Scaffold(
       appBar: CommonAppBar(
@@ -54,22 +53,16 @@ class MovieDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: movie == null
-          ? const Center(
-              child: Text('영화를 찾을 수 없어요', style: AppTextStyles.bodyMedium),
-            )
-          : ListView(
-              children: [
-                AspectRatio(
-                  aspectRatio: 2 / 3,
-                  child: MoviePosterImage(movie: movie),
-                ),
-                _MovieInfo(movie: movie),
-              ],
-            ),
-      bottomNavigationBar: movie == null
-          ? null
-          : _BottomActions(movieId: movie.id),
+      body: ListView(
+        children: [
+          AspectRatio(
+            aspectRatio: 2 / 3,
+            child: MoviePosterImage(movie: movie),
+          ),
+          _MovieInfo(movie: movie),
+        ],
+      ),
+      bottomNavigationBar: const _BottomActions(),
     );
   }
 }
@@ -134,9 +127,7 @@ class _MovieInfo extends StatelessWidget {
 }
 
 class _BottomActions extends StatefulWidget {
-  const _BottomActions({required this.movieId});
-
-  final int movieId;
+  const _BottomActions();
 
   @override
   State<_BottomActions> createState() => _BottomActionsState();
@@ -157,12 +148,31 @@ class _BottomActionsState extends State<_BottomActions> {
   }
 
   Future<void> _openRatingDialog() async {
-    final rating = await showDialog<double>(
+    final viewModel = context.read<MovieDetailViewModel>();
+    // 학습용 회원 ID가 없으면 Dialog를 열지 않고 안내만 합니다.
+    if (viewModel.memberId == null) {
+      _showSnackBar('먼저 회원가입을 완료해 주세요.');
+      return;
+    }
+
+    var savedScore = 0;
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => _RatingDialog(movieId: widget.movieId),
+      builder: (_) => RatingDialog(
+        onSubmit: (score, comment) async {
+          await viewModel.createRating(score: score, comment: comment);
+          // 실패하면 던져서 Dialog가 열린 채로 에러 문구를 보여 주게 합니다.
+          if (viewModel.submitStatus != SubmitStatus.success) {
+            final message = viewModel.submitMessage ?? '평점을 등록하지 못했어요.';
+            if (mounted) _showSnackBar(message);
+            throw StateError(message);
+          }
+          savedScore = score;
+        },
+      ),
     );
-    if (rating == null || !mounted) return;
-    _showSnackBar('${rating.toStringAsFixed(1)}점을 남겼어요');
+    if (saved != true || !mounted) return;
+    _showSnackBar('$savedScore점을 남겼어요');
   }
 
   @override
@@ -220,52 +230,6 @@ class _BottomActionsState extends State<_BottomActions> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _RatingDialog extends StatefulWidget {
-  const _RatingDialog({required this.movieId});
-
-  // TMDB 영화 id (평점 저장 API에서 movieId로 사용)
-  final int movieId;
-
-  @override
-  State<_RatingDialog> createState() => _RatingDialogState();
-}
-
-class _RatingDialogState extends State<_RatingDialog> {
-  double _rating = 3;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('평점 남기기'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          MovieRatingInput(
-            rating: _rating,
-            onChanged: (value) => setState(() => _rating = value),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '${_rating.toStringAsFixed(1)}점',
-            style: AppTextStyles.titleMedium,
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _rating),
-          style: FilledButton.styleFrom(backgroundColor: AppColors.violet),
-          child: const Text('등록'),
-        ),
-      ],
     );
   }
 }

@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../data/models/create_member_request.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
+import '../view_models/learning_member_session.dart';
 import '../view_models/sign_up_view_model.dart';
 import '../widgets/movielog_button.dart';
 
@@ -100,18 +102,51 @@ class _SignupScreenState extends State<SignupScreen> {
       _agreed &&
       context.read<SignUpViewModel>().isDuplicateCheckPassed;
 
-  void _submit() {
+  Future<void> _submit() async {
+    final viewModel = context.read<SignUpViewModel>();
     final isValid = _formKey.currentState?.validate() ?? false;
-    final checked = context.read<SignUpViewModel>().isDuplicateCheckPassed;
-    if (!isValid || !_agreed || !checked) {
+    if (!isValid || !_agreed || !viewModel.isDuplicateCheckPassed) {
       setState(() {});
       return;
     }
-    context.go('/home');
+
+    await viewModel.submit(
+      CreateMemberRequest(
+        email: _emailController.text,
+        password: _passwordController.text,
+        nickname: _nicknameController.text,
+      ),
+    );
+    if (!mounted) return;
+
+    final memberId = viewModel.createdMemberId;
+    if (viewModel.submitStatus == SubmitStatus.success && memberId != null) {
+      // 가입 성공 응답의 실제 ID를 학습용 세션에 저장합니다.
+      context.read<LearningMemberSession>().setMemberId(memberId);
+      context.go('/movies');
+      return;
+    }
+    final message = viewModel.snackbarMessage;
+    if (message != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 가입 요청 중에는 뒤로가기로 화면을 벗어나지 못하게 합니다.
+    return Consumer<SignUpViewModel>(
+      builder: (context, viewModel, child) => PopScope(
+        canPop: viewModel.submitStatus != SubmitStatus.submitting,
+        child: child!,
+      ),
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: _background,
       body: SafeArea(
@@ -200,15 +235,23 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
-                _SignupTextField(
-                  label: '비밀번호',
-                  hintText: '비밀번호를 입력해주세요',
-                  controller: _passwordController,
-                  focusNode: _passwordFocus,
-                  obscureText: true,
-                  isLast: true,
-                  validator: _validatePassword,
-                  onSubmitted: _submit,
+                Consumer<SignUpViewModel>(
+                  builder: (context, viewModel, child) => _SignupTextField(
+                    label: '비밀번호',
+                    hintText: '비밀번호를 입력해주세요',
+                    controller: _passwordController,
+                    focusNode: _passwordFocus,
+                    obscureText: true,
+                    isLast: true,
+                    validator: _validatePassword,
+                    onChanged: (_) {
+                      if (viewModel.passwordErrorText != null) {
+                        viewModel.onPasswordChanged();
+                      }
+                    },
+                    serverErrorText: viewModel.passwordErrorText,
+                    onSubmitted: _submit,
+                  ),
                 ),
                 const SizedBox(height: 100),
                 _AgreementCheckbox(
@@ -221,6 +264,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   builder: (context, viewModel, child) => MovieLogButton(
                     label: '가입하기',
                     width: double.infinity, // 부모 너비만큼 가득
+                    isLoading:
+                        viewModel.submitStatus == SubmitStatus.submitting,
                     onPressed: _isFormValid ? _submit : null,
                   ),
                 ),

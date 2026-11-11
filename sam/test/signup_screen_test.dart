@@ -3,10 +3,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:movielog/screens/signup_screen.dart';
-import 'package:movielog/data/services/member_check_service.dart';
+import 'package:movielog/data/services/sign_up_service.dart';
+import 'package:movielog/view_models/learning_member_session.dart';
 import 'package:movielog/view_models/sign_up_view_model.dart';
 import 'package:movielog/widgets/movielog_button.dart';
 
@@ -19,7 +21,7 @@ FakeMovieLogAdapter _server() => FakeMovieLogAdapter(
 
 Widget _app(FakeMovieLogAdapter adapter) => MaterialApp(
   home: ChangeNotifierProvider(
-    create: (_) => SignUpViewModel(MemberCheckService(fakeDio(adapter))),
+    create: (_) => SignUpViewModel(SignUpService(fakeDio(adapter))),
     child: const SignupScreen(),
   ),
 );
@@ -143,5 +145,66 @@ void main() {
     await tester.pumpWidget(_app(_server()));
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a successful sign-up saves the member and opens /movies', (
+    tester,
+  ) async {
+    final adapter = FakeMovieLogAdapter(
+      (options) => options.method == 'POST'
+          ? (
+              201,
+              {
+                'isSuccess': true,
+                'code': 'COMMON201',
+                'message': '가입 완료',
+                'result': {
+                  'memberId': 42,
+                  'email': 'movie@example.com',
+                  'nickname': '무비러버',
+                },
+              },
+            )
+          : (200, {'available': true}),
+    );
+    final session = LearningMemberSession();
+    final router = GoRouter(
+      initialLocation: '/signup',
+      routes: [
+        GoRoute(
+          path: '/signup',
+          builder: (_, _) => ChangeNotifierProvider(
+            create: (_) => SignUpViewModel(SignUpService(fakeDio(adapter))),
+            child: const SignupScreen(),
+          ),
+        ),
+        GoRoute(path: '/movies', builder: (_, _) => const Text('영화 목록')),
+      ],
+    );
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: session,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextFormField).at(0), '무비러버');
+    await tester.enterText(
+      find.byType(TextFormField).at(1),
+      'movie@example.com',
+    );
+    await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+    await tester.tap(find.text('필수 약관에 동의합니다'));
+    await tester.tap(_checkButton(0));
+    await tester.pumpAndSettle();
+    await tester.tap(_checkButton(1));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('가입하기'));
+    await tester.tap(find.text('가입하기'));
+    await tester.pumpAndSettle();
+
+    expect(session.memberId, 42);
+    expect(find.text('영화 목록'), findsOneWidget);
   });
 }

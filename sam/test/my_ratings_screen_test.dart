@@ -35,7 +35,7 @@ Widget _app(FakeMovieLogAdapter ratingServer, FakeMovieLogAdapter tmdbServer) {
                   create: (_) => MyRatingsViewModel(
                     RatingApiService(fakeDio(ratingServer)),
                     TmdbMovieService(fakeDio(tmdbServer)),
-                    sampleMemberId,
+                    1, // 학습용 회원 ID
                   )..load(),
                   child: const MyRatingsScreen(),
                 ),
@@ -121,5 +121,92 @@ void main() {
     await tester.tap(find.text('다시 시도'));
     await tester.pumpAndSettle();
     expect(find.text('영화 550'), findsOneWidget);
+  });
+
+  group('수정·삭제 버튼', () {
+    testWidgets('edit opens RatingDialog with the saved score and comment', (
+      tester,
+    ) async {
+      final server = FakeMovieLogAdapter(
+        (options) => options.method == 'PATCH'
+            ? (
+                409,
+                {
+                  'isSuccess': false,
+                  'code': 'RATING409',
+                  'message': '같은 내용으로는 수정할 수 없습니다.',
+                },
+              )
+            : (200, sampleRatingsJson()),
+      );
+      await tester.pumpWidget(_app(server, _tmdb()));
+      await _openRatings(tester);
+
+      // 두 번째 카드: 5점 · '최고의 영화!'
+      await tester.tap(find.byTooltip('수정').at(1));
+      await tester.pumpAndSettle();
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller!.text, '최고의 영화!');
+
+      await tester.tap(find.text('확인'));
+      await tester.pumpAndSettle();
+
+      final patch = server.requests.firstWhere((r) => r.method == 'PATCH');
+      expect(patch.path, '/v6/members/1/ratings/1');
+      expect(patch.data, {'score': 5, 'comment': '최고의 영화!'});
+      // 409는 서버 문구로 Dialog 안에 안내하고 입력은 그대로 둠
+      expect(find.text('같은 내용으로는 수정할 수 없습니다.'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets('a null comment starts as an empty field', (tester) async {
+      await tester.pumpWidget(
+        _app(FakeMovieLogAdapter((_) => (200, sampleRatingsJson())), _tmdb()),
+      );
+      await _openRatings(tester);
+
+      await tester.tap(find.byTooltip('수정').first);
+      await tester.pumpAndSettle();
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller!.text, isEmpty);
+    });
+
+    testWidgets('canceling delete sends no request', (tester) async {
+      final server = FakeMovieLogAdapter((_) => (200, sampleRatingsJson()));
+      await tester.pumpWidget(_app(server, _tmdb()));
+      await _openRatings(tester);
+
+      await tester.tap(find.byTooltip('삭제').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+
+      expect(server.requests.where((r) => r.method == 'DELETE'), isEmpty);
+    });
+
+    testWidgets('deleting the last rating shows the empty UI', (tester) async {
+      var ratings = [sampleRatingsJson().first];
+      final server = FakeMovieLogAdapter((options) {
+        if (options.method == 'DELETE') {
+          ratings = [];
+          return (204, {});
+        }
+        return (200, ratings);
+      });
+      await tester.pumpWidget(_app(server, _tmdb()));
+      await _openRatings(tester);
+
+      await tester.tap(find.byTooltip('삭제'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('삭제'));
+      await tester.pumpAndSettle();
+
+      expect(
+        server.requests.singleWhere((r) => r.method == 'DELETE').path,
+        '/v6/members/1/ratings/3',
+      );
+      expect(find.textContaining('아직 등록한 평점이 없어요'), findsOneWidget);
+      expect(find.text('평점을 삭제했어요'), findsOneWidget);
+    });
   });
 }
