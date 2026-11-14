@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/models/create_member_request.dart';
 import '../../theme/app_colors.dart';
+import '../../view_models/learning_member_session.dart';
 import '../../widgets/sign_up/password_field.dart';
 
 import '../../view_models/sign_up_view_model.dart';
@@ -56,16 +58,63 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  Future<void> onSubmitPressed(BuildContext context) async {
+    final viewModel = context.read<SignUpViewModel>();
+
+    if (viewModel.submitStatus == SubmitStatus.submitting) return;
+    if (!(formKey.currentState?.validate() ?? false)) return;
+    if (!agreedToTerms ||
+        viewModel.nicknameCheckStatus != CheckStatus.available ||
+        viewModel.emailCheckStatus != CheckStatus.available) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    await viewModel.submit(
+      CreateMemberRequest(
+        email: emailController.text,
+        password: passwordController.text,
+        nickname: nicknameController.text,
+      ),
+    );
+
+    if (!context.mounted) return;
+
+    if (viewModel.submitStatus == SubmitStatus.success &&
+        viewModel.createdMemberId != null) {
+      context
+          .read<LearningMemberSession>()
+          .setMemberId(viewModel.createdMemberId!);
+
+      context.go('/movies');
+      return;
+    }
+
+    final message = viewModel.snackbarMessage;
+    if (message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     final canSubmit =
         nicknameController.text.trim().length >= 2 &&
+        nicknameController.text.trim().length <= 12 &&
         emailPattern.hasMatch(emailController.text.trim()) &&
-        passwordController.text.length >= 8 &&
+        RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).{8,}$').hasMatch(passwordController.text) &&
         agreedToTerms;
 
-    return Scaffold(
+    return Consumer<SignUpViewModel>(
+      builder: (context, viewModel, child) => PopScope(
+        canPop: viewModel.submitStatus != SubmitStatus.submitting,
+        child: child!,
+      ),
+      child: Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -117,6 +166,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             );
           },
         ),
+      ),
       ),
     );
   }
@@ -182,6 +232,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               return '닉네임은 두 글자 이상 입력해 주세요.';
                             }
 
+                            if (nickname.length > 12) return '닉네임은 12자 이하로 입력해 주세요.';
                             return null;
                           },
                           onChanged: (value) {
@@ -293,8 +344,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(width: 8),
                       MovieLogButton(
                         label: '중복 확인',
-                        isLoading:
-                            viewModel.emailCheckStatus == CheckStatus.checking,
+                        isLoading: viewModel.emailCheckStatus == CheckStatus.checking,
                         onPressed: viewModel.canCheckEmail
                             ? () => viewModel.checkEmail(emailController.text)
                             : null,
@@ -332,11 +382,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
           const SizedBox(height: 16),
 
-          PasswordField(
-            controller: passwordController,
-            focusNode: passwordFocusNode,
-            onChanged: (_) {
-              setState(() {});
+          Consumer<SignUpViewModel>(
+            builder: (context, viewModel, child) {
+              return PasswordField(
+                controller: passwordController,
+                focusNode: passwordFocusNode,
+                errorText: viewModel.passwordErrorText,
+                onChanged: (_) {
+                  viewModel.onPasswordChanged();
+                  setState(() {});
+                },
+              );
             },
           ),
 
@@ -371,19 +427,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
           const SizedBox(height: 24),
 
-          MovieLogButton(
-            label: '가입하기',
-            width: double.infinity,
-            onPressed: canSubmit
-                ? () {
-                    final isValid = formKey.currentState?.validate() ?? false;
-
-                    if (!isValid) return;
-
-                    FocusScope.of(context).unfocus();
-                    context.go('/home');
-                  }
-                : null,
+          Consumer<SignUpViewModel>(
+            builder: (context, viewModel, child) {
+              final isSubmitting = viewModel.submitStatus == SubmitStatus.submitting;
+              final enabled = canSubmit &&
+                  viewModel.nicknameCheckStatus == CheckStatus.available &&
+                  viewModel.emailCheckStatus == CheckStatus.available &&
+                  !isSubmitting;
+              return MovieLogButton(
+                label: '가입하기',
+                width: double.infinity,
+                isLoading: isSubmitting,
+                onPressed: enabled ? () => onSubmitPressed(context) : null,
+              );
+            },
           ),
 
           const SizedBox(height: 24),

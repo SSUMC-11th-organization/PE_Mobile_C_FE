@@ -8,11 +8,13 @@ class PasswordField extends StatefulWidget {
     required this.controller,
     required this.focusNode,
     required this.onChanged,
+    this.errorText
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
+  final String? errorText;
 
   @override
   State<PasswordField> createState() => _PasswordFieldState();
@@ -37,7 +39,8 @@ class _PasswordFieldState extends State<PasswordField> {
           obscureText: obscureText,
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(
-            hintText: '영문, 숫자 포함 8자 이상',
+            errorText: widget.errorText,
+            hintText: '대문자·소문자·숫자·특수문자 포함 8자 이상',
             filled: true,
             fillColor: const Color(0xFFFFFDFC),
             isDense: true,
@@ -81,6 +84,9 @@ class _PasswordFieldState extends State<PasswordField> {
               return '비밀번호는 8자 이상 입력해주세요.';
             }
 
+            if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).{8,}$').hasMatch(password)) {
+              return '대문자·소문자·숫자·특수문자(!@#\$%^&*)를 모두 포함해 주세요.';
+            }
             return null;
           },
           onChanged: widget.onChanged,

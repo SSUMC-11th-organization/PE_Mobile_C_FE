@@ -1,15 +1,15 @@
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 
-import '../services/member_check_service.dart';
+import '../screens/movie_detail_loader.dart';
+import '../services/sign_up_service.dart';
+import '../view_models/learning_member_session.dart';
 import '../view_models/sign_up_view_model.dart';
 import '../screens/auth/sign_up_screen.dart';
 import '../screens/auth/start_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/main_screen.dart';
-import '../screens/movie/movie_detail_screen.dart';
 import '../screens/movie/movie_list_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../services/tmdb_movie_service.dart';
@@ -34,17 +34,7 @@ class AppRouter {
         path: '/register',
         builder: (context, state) {
           return ChangeNotifierProvider<SignUpViewModel>(
-            create: (_) => SignUpViewModel(
-              MemberCheckService(
-                Dio(
-                  BaseOptions(
-                    baseUrl: 'https://workbook.devnoco.com',
-                    connectTimeout: const Duration(seconds: 10),
-                    receiveTimeout: const Duration(seconds: 10),
-                  ),
-                ),
-              ),
-            ),
+            create: (context) => SignUpViewModel(context.read<SignUpService>()),
             child: const SignUpScreen(),
           );
         },
@@ -72,32 +62,23 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/movies',
-                builder: (context, state) =>
-                    ChangeNotifierProvider<MovieListViewModel>(
-                      create: (context) =>
-                          MovieListViewModel(context.read<TmdbMovieService>())
-                            ..loadInitial(),
-                      child: const MovieListScreen(),
-                    ),
+                builder: (context, state) => ChangeNotifierProvider<MovieListViewModel>(
+                  create: (context) => MovieListViewModel(context.read<TmdbMovieService>())..loadInitial(),
+                  child: const MovieListScreen(),
+                ),
                 routes: [
                   GoRoute(
                     path: ':movieId',
                     builder: (context, state) {
-                      final extra = state.extra;
-                      final movieId = int.tryParse(
-                        state.pathParameters['movieId'] ?? '',
-                      );
-
-                      if (extra is! TmdbMovieDto || extra.id != movieId) {
-                        return Scaffold(
-                          appBar: AppBar(title: const Text('영화 상세')),
-                          body: const Center(
-                            child: Text('영화 목록에서 영화를 다시 선택해주세요.'),
-                          ),
-                        );
+                      final id = int.tryParse(state.pathParameters['movieId'] ?? '');
+                      if (id == null || id < 1) {
+                        return const Scaffold(body: Center(child: Text('영화 ID가 올바르지 않습니다.')));
                       }
-
-                      return MovieDetailScreen(movie: extra);
+                      final extra = state.extra;
+                      return MovieDetailLoader(
+                        movieId: id,
+                        initialMovie: extra is TmdbMovieDto && extra.id == id ? extra : null,
+                      );
                     },
                   ),
                 ],
@@ -111,14 +92,21 @@ class AppRouter {
                 builder: (context, state) => const ProfileScreen(),
                 routes: [
                   GoRoute(
-                    path: 'ratings',
-                    parentNavigatorKey: rootNavigatorKey,
+                    path: 'ratings', // /my Route 아래의 자식, root Navigator에 표시
+                    parentNavigatorKey: AppRouter.rootNavigatorKey,
                     builder: (context, state) {
+                      final id = context.read<LearningMemberSession>().memberId;
+                      if (id == null) {
+                        return Scaffold(
+                          appBar: AppBar(centerTitle: true, title: const Text('내가 등록한 평점')),
+                          body: const Center(child: Text('학습용 회원가입이 필요합니다.')),
+                        );
+                      }
                       return ChangeNotifierProvider<MyRatingsViewModel>(
                         create: (context) => MyRatingsViewModel(
                           context.read<RatingApiService>(),
                           context.read<TmdbMovieService>(),
-                          sampleMemberId,
+                          id,
                         )..load(),
                         child: const MyRatingsScreen(),
                       );
