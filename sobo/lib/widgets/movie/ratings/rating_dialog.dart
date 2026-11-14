@@ -1,92 +1,115 @@
-import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../../data/models/rating_request.dart';
+import '../../../services/rating_api_service.dart';
+import '../../movielog_button.dart';
 import 'movie_rating_input.dart';
 
 class RatingDialog extends StatefulWidget {
   const RatingDialog({
     super.key,
-    required this.movieId,
-    required this.movieTitle,
-    this.initialRating = 0,
+    this.initialScore = 0,
+    this.initialComment,
+    required this.onSubmit,
   });
 
-  final int movieId;
-  final String movieTitle;
-  final double initialRating;
+  final int initialScore;
+  final String? initialComment;
+  final Future<void> Function(int score, String? comment) onSubmit;
 
   @override
   State<RatingDialog> createState() => _RatingDialogState();
 }
 
 class _RatingDialogState extends State<RatingDialog> {
-  late double rating;
+  late int _score = widget.initialScore;
+  late final _commentController =
+  TextEditingController(text: widget.initialComment ?? '');
+  bool _isSubmitting = false;
+  String? _errorText;
 
   @override
-  void initState() {
-    super.initState();
-    rating = widget.initialRating;
-
-    if (kDebugMode) {
-      debugPrint('[평점 Dialog] movieId=${widget.movieId}');
-    }
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+    return PopScope(
+      canPop: !_isSubmitting,
+      child: AlertDialog(
+        title: const Text('평점을 남겨주세요'),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              widget.movieTitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text('영화는 어떠셨나요?'),
-            const SizedBox(height: 24),
             MovieRatingInput(
-              rating: rating,
-              onChanged: (value) {
-                setState(() {
-                  rating = value;
-                });
-              },
+              rating: _score.toDouble(),
+              enabled: !_isSubmitting,
+              onChanged: (value) => setState(
+                    () => _score = validateServerScore(value),
+              ),
             ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      rating = 0;
-                    });
-                  },
-                  child: const Text('초기화'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (kDebugMode) {
-                      debugPrint(
-                        '[평점 선택] '
-                        'movieId=${widget.movieId}, '
-                        'rating=$rating',
-                      );
-                    }
-
-                    Navigator.pop(context, rating);
-                  },
-                  child: const Text('확인'),
-                ),
-              ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _commentController,
+              maxLines: 3,
+              maxLength: 500,
+              enabled: !_isSubmitting,
+              decoration: const InputDecoration(
+                hintText: '코멘트를 남겨보세요 (선택)',
+              ),
             ),
+            if (_errorText != null) ...[
+              const SizedBox(height: 8),
+              Text(_errorText!, style: const TextStyle(color: Colors.red)),
+            ],
           ],
         ),
+        actions: [
+          MovieLogButton(
+            label: '취소',
+            onPressed: _isSubmitting ? null : () => Navigator.pop(context, false),
+          ),
+          MovieLogButton(
+            label: '확인',
+            isLoading: _isSubmitting,
+            onPressed: _score > 0 && !_isSubmitting ? _onConfirm : null,
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _onConfirm() async {
+    setState(() {
+      _isSubmitting = true;
+      _errorText = null;
+    });
+
+    final trimmed = _commentController.text.trim();
+    if (trimmed.length > 500) {
+      setState(() {
+        _isSubmitting = false;
+        _errorText = '코멘트는 500자 이하로 입력해 주세요.';
+      });
+      return;
+    }
+    try {
+      await widget.onSubmit(_score, trimmed.isEmpty ? null : trimmed);
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _errorText = error is DioException
+            ? writeErrorMessage(error)
+            : error is StateError
+                ? error.message.toString()
+                : '저장하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      });
+    }
   }
 }

@@ -18,9 +18,7 @@ class FakeTmdbMovieService extends TmdbMovieService {
 
   @override
   Future<List<TmdbGenreDto>> fetchGenres() async {
-    return const [
-      TmdbGenreDto(id: 28, name: '액션'),
-    ];
+    return const [TmdbGenreDto(id: 28, name: '액션')];
   }
 
   @override
@@ -33,9 +31,7 @@ class FakeTmdbMovieService extends TmdbMovieService {
 
     if (fail) {
       throw DioException(
-        requestOptions: RequestOptions(
-          path: '/discover/movie',
-        ),
+        requestOptions: RequestOptions(path: '/discover/movie'),
         type: DioExceptionType.connectionError,
       );
     }
@@ -47,19 +43,19 @@ class FakeTmdbMovieService extends TmdbMovieService {
     final results = returnEmpty
         ? <TmdbMovieDto>[]
         : List.generate(
-      20,
-          (index) => TmdbMovieDto(
-        id: firstId + index,
-        title: '테스트 영화 ${firstId + index}',
-        overview: '',
-        posterPath: null,
-        backdropPath: null,
-        releaseDate: null,
-        genreIds: [genreId ?? 28],
-        voteAverage: 8.0,
-        popularity: 1.0,
-      ),
-    );
+            20,
+            (index) => TmdbMovieDto(
+              id: firstId + index,
+              title: '테스트 영화 ${firstId + index}',
+              overview: '',
+              posterPath: null,
+              backdropPath: null,
+              releaseDate: null,
+              genreIds: [genreId ?? 28],
+              voteAverage: 8.0,
+              popularity: 1.0,
+            ),
+          );
 
     return TmdbMoviePageDto(
       page: page,
@@ -115,8 +111,7 @@ void main() {
   });
 
   test('빈 응답이면 empty 상태가 된다', () async {
-    final service = FakeTmdbMovieService()
-      ..returnEmpty = true;
+    final service = FakeTmdbMovieService()..returnEmpty = true;
 
     final viewModel = MovieListViewModel(service);
     addTearDown(viewModel.dispose);
@@ -129,8 +124,7 @@ void main() {
   });
 
   test('조회 실패 후 재시도하면 성공 상태로 복구한다', () async {
-    final service = FakeTmdbMovieService()
-      ..fail = true;
+    final service = FakeTmdbMovieService()..fail = true;
 
     final viewModel = MovieListViewModel(service);
     addTearDown(viewModel.dispose);
@@ -152,14 +146,11 @@ void main() {
 
     expect(viewModel.status, MovieListLoadStatus.success);
     expect(viewModel.message, isNull);
-    expect(
-      statuses,
-      [
-        MovieListLoadStatus.loading,
-        MovieListLoadStatus.error,
-        MovieListLoadStatus.loading,
-        MovieListLoadStatus.success,
-      ],
-    );
+    expect(statuses, [
+      MovieListLoadStatus.loading,
+      MovieListLoadStatus.error,
+      MovieListLoadStatus.loading,
+      MovieListLoadStatus.success,
+    ]);
   });
 }

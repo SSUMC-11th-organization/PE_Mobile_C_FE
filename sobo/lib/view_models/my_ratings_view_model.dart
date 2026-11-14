@@ -22,6 +22,7 @@ class MyRatingsViewModel extends ChangeNotifier {
   List<RatingWithMovie> ratings = const [];
   MyRatingsLoadStatus status = MyRatingsLoadStatus.idle;
   String? message;
+  String? refreshWarning;
 
   Future<void> load() async {
     final version = ++_requestVersion;
@@ -51,6 +52,7 @@ class MyRatingsViewModel extends ChangeNotifier {
       }
       if (_disposed || version != _requestVersion) return;
       ratings = entries;
+      refreshWarning = null;
       status = entries.isEmpty
           ? MyRatingsLoadStatus.empty
           : MyRatingsLoadStatus.success;
@@ -64,6 +66,115 @@ class MyRatingsViewModel extends ChangeNotifier {
     }
     if (!_disposed && version == _requestVersion) notifyListeners();
   }
+
+  Future<void> _refreshAfterWrite() async {
+    if (_disposed) return;
+
+    refreshWarning = null;
+    await load();
+
+    if (_disposed) return;
+
+    if (status == MyRatingsLoadStatus.error) {
+      refreshWarning =
+      '저장은 완료됐지만 목록을 불러오지 못했습니다. 조회만 다시 시도해 주세요.';
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> updateRating({
+    required int ratingId,
+    required int score,
+    String? comment,
+  }) async {
+    if (_disposed) return;
+
+    try {
+      await _service.updateRating(
+        memberId: memberId,
+        ratingId: ratingId,
+        score: score,
+        comment: comment,
+      );
+    } on DioException catch (error) {
+      if (!_disposed) {
+        message = writeErrorMessage(error);
+        notifyListeners();
+
+        if (shouldRefreshAfterRatingError(error)) {
+          await load();
+        }
+      }
+
+      rethrow;
+    }
+
+    await _refreshAfterWrite();
+  }
+
+  Future<void> deleteRating(int ratingId) async {
+    if (_disposed) return;
+
+    try {
+      await _service.deleteRating(
+        memberId: memberId,
+        ratingId: ratingId,
+      );
+    } on DioException catch (error) {
+      if (!_disposed) {
+        message = writeErrorMessage(error);
+        notifyListeners();
+
+        if (shouldRefreshAfterRatingError(error)) {
+          await load();
+        }
+      }
+
+      rethrow;
+    }
+
+    await _refreshAfterWrite();
+  }
+
+
+  final Set<int> selectedRatingIds = {};
+  bool isDeletingSelected = false;
+
+  void toggleRatingSelection(int ratingId) {
+    if (_disposed || isDeletingSelected) return;
+    if (!selectedRatingIds.add(ratingId)) {
+      selectedRatingIds.remove(ratingId);
+    }
+    notifyListeners();
+  }
+
+  Future<void> deleteSelectedRatings() async {
+    if (_disposed || isDeletingSelected || selectedRatingIds.isEmpty) return;
+    isDeletingSelected = true;
+    notifyListeners();
+    var failed = 0;
+    try {
+      for (final ratingId in selectedRatingIds.toList()) {
+        try {
+          await _service.deleteRating(memberId: memberId, ratingId: ratingId);
+          selectedRatingIds.remove(ratingId);
+        } on DioException {
+          failed++;
+          // 실패한 항목은 선택 상태를 유지합니다.
+        }
+      }
+    } finally {
+      isDeletingSelected = false;
+      if (!_disposed) notifyListeners();
+    }
+    await _refreshAfterWrite();
+    if (!_disposed && failed > 0) {
+      message = '$failed개 항목을 삭제하지 못했습니다. 선택된 항목을 다시 확인해 주세요.';
+      notifyListeners();
+    }
+  }
+
 
   @override
   void dispose() {

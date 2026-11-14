@@ -1,22 +1,33 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
-import '../services/member_check_service.dart';
+import '../data/models/create_member_request.dart';
+import '../services/sign_up_service.dart';
 
 enum CheckStatus { idle, checking, available, duplicated, error }
+
+enum SubmitStatus { idle, submitting, success, error }
 
 class SignUpViewModel extends ChangeNotifier {
   SignUpViewModel(this._service);
 
-  final MemberCheckService _service;
+  final SignUpService _service;
   bool _disposed = false;
 
+  // 회원가입 제출 상태
+  SubmitStatus submitStatus = SubmitStatus.idle;
+  int? createdMemberId;
+  String? passwordErrorText;
+  String? snackbarMessage;
+
+  // 닉네임 중복 확인 상태
   CheckStatus nicknameCheckStatus = CheckStatus.idle;
   String? nicknameErrorText;
   String? _duplicatedNickname;
   String _currentNickname = '';
   int _nicknameRequestVersion = 0;
 
+  // 이메일 중복 확인 상태
   CheckStatus emailCheckStatus = CheckStatus.idle;
   String? emailErrorText;
   String? _duplicatedEmail;
@@ -25,13 +36,14 @@ class SignUpViewModel extends ChangeNotifier {
 
   bool get canCheckNickname =>
       nicknameCheckStatus != CheckStatus.checking &&
-      nicknameCheckStatus != CheckStatus.duplicated;
+          nicknameCheckStatus != CheckStatus.duplicated;
 
   bool get canCheckEmail =>
       emailCheckStatus != CheckStatus.checking &&
-      emailCheckStatus != CheckStatus.duplicated;
+          emailCheckStatus != CheckStatus.duplicated;
 
   void onNicknameChanged(String value) {
+    snackbarMessage = null;
     _currentNickname = value.trim();
     _nicknameRequestVersion++;
 
@@ -48,6 +60,7 @@ class SignUpViewModel extends ChangeNotifier {
   }
 
   void onEmailChanged(String value) {
+    snackbarMessage = null;
     _currentEmail = value.trim();
     _emailRequestVersion++;
 
@@ -59,6 +72,11 @@ class SignUpViewModel extends ChangeNotifier {
       emailErrorText = null;
     }
 
+    if (!_disposed) notifyListeners();
+  }
+
+  void onPasswordChanged() {
+    passwordErrorText = null;
     if (!_disposed) notifyListeners();
   }
 
@@ -82,9 +100,8 @@ class SignUpViewModel extends ChangeNotifier {
 
       if (_disposed || version != _nicknameRequestVersion) return;
 
-      nicknameCheckStatus = available
-          ? CheckStatus.available
-          : CheckStatus.duplicated;
+      nicknameCheckStatus =
+      available ? CheckStatus.available : CheckStatus.duplicated;
       nicknameErrorText = available ? null : '이미 사용 중인 닉네임입니다.';
 
       if (!available) _duplicatedNickname = requested;
@@ -120,9 +137,8 @@ class SignUpViewModel extends ChangeNotifier {
 
       if (_disposed || version != _emailRequestVersion) return;
 
-      emailCheckStatus = available
-          ? CheckStatus.available
-          : CheckStatus.duplicated;
+      emailCheckStatus =
+      available ? CheckStatus.available : CheckStatus.duplicated;
       emailErrorText = available ? null : '이미 사용 중인 이메일입니다.';
 
       if (!available) _duplicatedEmail = requested;
@@ -136,6 +152,49 @@ class SignUpViewModel extends ChangeNotifier {
     if (!_disposed && version == _emailRequestVersion) {
       notifyListeners();
     }
+  }
+
+  Future<void> submit(CreateMemberRequest request) async {
+    if (_disposed || submitStatus == SubmitStatus.submitting) return;
+
+    submitStatus = SubmitStatus.submitting;
+    createdMemberId = null;
+    passwordErrorText = null;
+    snackbarMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _service.signUp(request);
+      if (_disposed) return;
+
+      final id = response.result?.memberId;
+      if (id == null) {
+        throw StateError('회원가입 결과에 memberId가 없습니다.');
+      }
+
+      createdMemberId = id;
+      submitStatus = SubmitStatus.success;
+    } on DioException catch (error) {
+      if (_disposed) return;
+
+      submitStatus = SubmitStatus.error;
+      final message = writeSignUpErrorMessage(error);
+
+      if (error.response?.statusCode == 400 &&
+          message.contains('비밀번호')) {
+        passwordErrorText = message;
+      } else {
+        snackbarMessage = message;
+      }
+    } on StateError {
+      if (_disposed) return;
+
+      submitStatus = SubmitStatus.error;
+      snackbarMessage =
+      '가입 결과를 확인하지 못했습니다. 새 요청 전에 서버 상태를 확인해 주세요.';
+    }
+
+    if (!_disposed) notifyListeners();
   }
 
   @override
