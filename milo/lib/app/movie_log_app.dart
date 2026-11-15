@@ -65,19 +65,34 @@ class _MovieLogRouterApp extends StatefulWidget {
 
 class _MovieLogRouterAppState extends State<_MovieLogRouterApp> {
   late final GoRouter _router;
+  late final AuthViewModel _authViewModel;
+  late final LearningMemberSession _learningSession;
+  AuthStatus _previousStatus = AuthStatus.initializing;
+
+  void _clearLearningSessionOnSignOut() {
+    final current = _authViewModel.status;
+    if (_previousStatus == AuthStatus.signedIn &&
+        current == AuthStatus.signedOut) {
+      _learningSession.clear();
+    }
+    _previousStatus = current;
+  }
 
   @override
   void initState() {
     super.initState();
-    final authViewModel = context.read<AuthViewModel>();
-    _router = AppRouter.createRouter(authViewModel);
+    _authViewModel = context.read<AuthViewModel>();
+    _learningSession = context.read<LearningMemberSession>();
+    _authViewModel.addListener(_clearLearningSessionOnSignOut);
+    _router = AppRouter.createRouter(_authViewModel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) authViewModel.restoreSession();
+      if (mounted) _authViewModel.restoreSession();
     }); // 첫 build 이후 세션 복원을 시작합니다.
   }
 
   @override
   void dispose() {
+    _authViewModel.removeListener(_clearLearningSessionOnSignOut);
     _router.dispose();
     super.dispose();
   }
