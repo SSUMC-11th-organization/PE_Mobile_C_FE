@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:go_router/go_router.dart';
 import 'package:movielog/theme/app_colors.dart';
 import 'package:movielog/view_models/movie_detail_view_model.dart';
 import 'package:movielog/widgets/movie_card.dart';
@@ -29,8 +28,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     final detail = movie is TmdbMovieDetailDto ? movie : null;
     final genres = detail?.genres ?? [];
     final runtime = detail?.runtime;
-    final canRate = viewModel.memberId != null; // 회원가입 전에는 등록 버튼 비활성화
-
+    final canRate = viewModel.submitStatus != SubmitStatus.submitting;
     final subtitle = [
       if (detail != null) detail.year,
       if (genres.isNotEmpty) genres.map((g) => g.name).join(', '),
@@ -250,22 +248,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 가입 전에는 평점을 남길 수 없으니 회원가입으로 안내합니다.
-              if (!canRate)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Text('평점을 남기려면 먼저 학습용 회원가입이 필요합니다.'),
-                      TextButton(
-                        onPressed: () => context.push('/register'),
-                        child: const Text('회원가입'),
-                      ),
-                    ],
-                  ),
-                ),
               Row(
                 children: [
                   Expanded(
