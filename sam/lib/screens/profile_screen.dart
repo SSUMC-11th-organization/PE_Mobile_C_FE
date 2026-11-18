@@ -1,10 +1,12 @@
 // 프로필 화면 구현
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
+import '../view_models/auth_view_model.dart';
 import '../widgets/common_app_bar.dart';
 import '../widgets/stat_item.dart';
 
@@ -16,7 +18,16 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CommonAppBar(title: '내 프로필'),
+      appBar: CommonAppBar(
+        title: '내 프로필',
+        actions: [
+          TextButton(
+            onPressed: () => context.read<AuthViewModel>().logout(),
+            style: TextButton.styleFrom(foregroundColor: AppColors.violet),
+            child: const Text('로그아웃'),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -31,10 +42,10 @@ class ProfileScreen extends StatelessWidget {
               const Center(child: _EditProfileButton()),
               const SizedBox(height: AppSpacing.xl),
               const _ProfileStats(),
+              const SizedBox(height: AppSpacing.lg),
+              const _MyRatingsMenu(),
               const SizedBox(height: AppSpacing.xl),
               const _FavoriteGenresSection(genres: _genres),
-              const SizedBox(height: AppSpacing.xl),
-              const _MyRatingsMenu(),
               const SizedBox(height: AppSpacing.md),
             ],
           ),
@@ -49,63 +60,39 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final member = context.select<AuthViewModel, (String, String)?>(
+      (auth) => auth.member == null
+          ? null
+          : (auth.member!.nickname, auth.member!.email),
+    );
 
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
+            width: 128,
+            height: 128,
             margin: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 128,
-                  height: 128,
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.primary.withValues(alpha: 0.35),
-                  ),
-                  child: ClipOval(
-                    child: Image.asset(
-                      'assets/images/profile/profile_movielog.jpg',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: colors.primary,
-                      border: Border.all(color: colors.surface, width: 2),
-                    ),
-                    child: SvgPicture.asset(
-                      'assets/icons/movie.svg',
-                      colorFilter: ColorFilter.mode(
-                        colors.onPrimary,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.all(2),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.violet,
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/profile/profile_movielog.jpg',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-          Text('무비러버', style: AppTextStyles.headlineLarge),
-          const SizedBox(height: AppSpacing.sm),
-          const Text(
-            '좋아하는 영화를 기록하고 있어요',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodyMedium,
+          // 내 정보(GET me)를 받기 전에는 빈 자리 대신 안내 문구를 보여 줌
+          Text(
+            member?.$1 ?? '내 정보를 불러오는 중이에요',
+            style: AppTextStyles.titleLarge,
           ),
+          const SizedBox(height: AppSpacing.sm),
+          if (member != null) Text(member.$2, style: AppTextStyles.bodySmall),
         ],
       ),
     );
@@ -118,11 +105,15 @@ class _EditProfileButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    // 수정 화면은 현재 닉네임이 필요하므로 내 정보가 있을 때만 켭니다.
+    final hasMember = context.select<AuthViewModel, bool>(
+      (auth) => auth.member != null,
+    );
     return TextButton(
-      onPressed: () {},
+      onPressed: hasMember ? () => context.push('/my/profile/edit') : null,
       style: TextButton.styleFrom(
         foregroundColor: colors.primary,
-        side: BorderSide(color: colors.primary),
+        side: BorderSide(color: hasMember ? colors.primary : AppColors.gray),
         minimumSize: const Size(132, 42),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       ),
@@ -169,18 +160,7 @@ class _FavoriteGenresSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            SvgPicture.asset(
-              'assets/icons/bookmark.svg',
-              width: 18,
-              height: 18,
-              colorFilter: ColorFilter.mode(colors.primary, BlendMode.srcIn),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text('선호하는 장르', style: AppTextStyles.titleMedium),
-          ],
-        ),
+        Text('선호하는 장르', style: AppTextStyles.titleMedium),
         const SizedBox(height: AppSpacing.md),
         Wrap(
           spacing: AppSpacing.sm,
@@ -208,9 +188,15 @@ class _MyRatingsMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return ListTile(
-      title: const Text('내가 등록한 평점'),
-      trailing: const Icon(Icons.chevron_right),
+      title: const Text('내가 등록한 평점', style: AppTextStyles.bodyMedium),
+      trailing: Icon(Icons.chevron_right, color: colors.primary),
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colors.primary.withValues(alpha: 0.3)),
+      ),
       onTap: () => context.push('/my/ratings'),
     );
   }

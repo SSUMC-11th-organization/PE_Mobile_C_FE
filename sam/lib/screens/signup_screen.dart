@@ -7,7 +7,6 @@ import '../data/models/create_member_request.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
-import '../view_models/learning_member_session.dart';
 import '../view_models/sign_up_view_model.dart';
 import '../widgets/movielog_button.dart';
 
@@ -119,11 +118,12 @@ class _SignupScreenState extends State<SignupScreen> {
     );
     if (!mounted) return;
 
-    final memberId = viewModel.createdMemberId;
-    if (viewModel.submitStatus == SubmitStatus.success && memberId != null) {
-      // 가입 성공 응답의 실제 ID를 학습용 세션에 저장합니다.
-      context.read<LearningMemberSession>().setMemberId(memberId);
-      context.go('/movies');
+    if (viewModel.submitStatus == SubmitStatus.success) {
+      // 8주차부터는 가입 응답의 memberId를 세션으로 쓰지 않고, 로그인해서 토큰을 받습니다.
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('가입이 완료됐어요. 로그인해 주세요.')));
+      context.go('/login');
       return;
     }
     final message = viewModel.snackbarMessage;

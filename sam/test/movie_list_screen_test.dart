@@ -6,13 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:movielog/data/models/movie.dart';
-import 'package:movielog/data/services/rating_api_service.dart';
 import 'package:movielog/data/services/tmdb_movie_service.dart';
 import 'package:movielog/screens/movie_detail_loader.dart';
 import 'package:movielog/screens/movie_detail_screen.dart';
 import 'package:movielog/screens/movie_list_screen.dart';
 import 'package:movielog/theme/app_theme.dart';
-import 'package:movielog/view_models/learning_member_session.dart';
+import 'package:movielog/view_models/auth_view_model.dart';
+import 'package:movielog/view_models/session_ratings_store.dart';
 import 'package:movielog/view_models/movie_list_view_model.dart';
 import 'package:movielog/widgets/movie_poster_card.dart';
 import 'package:provider/provider.dart';
@@ -183,17 +183,17 @@ void main() {
         ),
       ],
     );
+    // 평점 Dialog가 열리도록 로그인 상태를 미리 만들어 둠
+    final auth = fakeAuthViewModel();
+    await tester.runAsync(() => signIn(auth));
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          // 평점 Dialog가 열리도록 학습용 회원을 미리 넣어 둠
-          ChangeNotifierProvider(
-            create: (_) => LearningMemberSession()..setMemberId(1),
-          ),
+          ChangeNotifierProvider<AuthViewModel>.value(value: auth),
+          ChangeNotifierProvider(create: (_) => SessionRatingsStore(auth)),
           Provider(
-            create: (_) => RatingApiService(
-              fakeDio(FakeMovieLogAdapter((_) => (201, {}))),
-            ),
+            create: (_) =>
+                fakeRatingService(FakeMovieLogAdapter((_) => (201, {}))),
           ),
           Provider<TmdbMovieService>(create: (_) => fakeTmdbService(adapter)),
         ],

@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 
 import 'package:movielog/screens/signup_screen.dart';
 import 'package:movielog/data/services/sign_up_service.dart';
-import 'package:movielog/view_models/learning_member_session.dart';
 import 'package:movielog/view_models/sign_up_view_model.dart';
 import 'package:movielog/widgets/movielog_button.dart';
 
@@ -147,9 +146,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a successful sign-up saves the member and opens /movies', (
-    tester,
-  ) async {
+  testWidgets('a successful sign-up goes to /login', (tester) async {
     final adapter = FakeMovieLogAdapter(
       (options) => options.method == 'POST'
           ? (
@@ -167,7 +164,6 @@ void main() {
             )
           : (200, {'available': true}),
     );
-    final session = LearningMemberSession();
     final router = GoRouter(
       initialLocation: '/signup',
       routes: [
@@ -178,15 +174,13 @@ void main() {
             child: const SignupScreen(),
           ),
         ),
-        GoRoute(path: '/movies', builder: (_, _) => const Text('영화 목록')),
+        GoRoute(
+          path: '/login',
+          builder: (_, _) => const Scaffold(body: Text('로그인 화면')),
+        ),
       ],
     );
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: session,
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
 
     await tester.enterText(find.byType(TextFormField).at(0), '무비러버');
     await tester.enterText(
@@ -204,7 +198,8 @@ void main() {
     await tester.tap(find.text('가입하기'));
     await tester.pumpAndSettle();
 
-    expect(session.memberId, 42);
-    expect(find.text('영화 목록'), findsOneWidget);
+    // 가입 응답의 memberId를 세션으로 쓰지 않고 로그인 화면으로 이동
+    expect(find.text('로그인 화면'), findsOneWidget);
+    expect(find.text('가입이 완료됐어요. 로그인해 주세요.'), findsOneWidget);
   });
 }
