@@ -7,11 +7,11 @@ import 'package:provider/provider.dart';
 
 import 'package:movielog/data/mock_movies.dart';
 import 'package:movielog/data/models/movie.dart';
-import 'package:movielog/data/services/rating_api_service.dart';
 import 'package:movielog/data/services/tmdb_movie_service.dart';
 import 'package:movielog/screens/movie_detail_loader.dart';
 import 'package:movielog/screens/movie_detail_screen.dart';
-import 'package:movielog/view_models/learning_member_session.dart';
+import 'package:movielog/view_models/auth_view_model.dart';
+import 'package:movielog/view_models/session_ratings_store.dart';
 import 'package:movielog/widgets/movie_card.dart';
 import 'package:movielog/widgets/rating_dialog.dart';
 
@@ -20,7 +20,7 @@ import 'helpers/fake_tmdb.dart';
 
 // 실제 AppRouter의 /movies/:movieId와 같은 방식으로 Loader를 띄움
 Widget _app({
-  int? memberId,
+  AuthViewModel? auth,
   FakeMovieLogAdapter? ratingServer,
   FakeTmdbAdapter? tmdbServer,
 }) {
@@ -45,15 +45,14 @@ Widget _app({
       ),
     ],
   );
-  final session = LearningMemberSession();
-  if (memberId != null) session.setMemberId(memberId);
-
+  final authViewModel = auth ?? fakeAuthViewModel();
   return MultiProvider(
     providers: [
-      ChangeNotifierProvider.value(value: session),
+      ChangeNotifierProvider<AuthViewModel>.value(value: authViewModel),
+      ChangeNotifierProvider(create: (_) => SessionRatingsStore(authViewModel)),
       Provider(
-        create: (_) => RatingApiService(
-          fakeDio(ratingServer ?? FakeMovieLogAdapter((_) => (201, {}))),
+        create: (_) => fakeRatingService(
+          ratingServer ?? FakeMovieLogAdapter((_) => (201, {})),
         ),
       ),
       Provider(
@@ -108,11 +107,16 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => LearningMemberSession()),
+          ChangeNotifierProvider<AuthViewModel>(
+            create: (_) => fakeAuthViewModel(),
+          ),
+          ChangeNotifierProvider(
+            create: (context) =>
+                SessionRatingsStore(context.read<AuthViewModel>()),
+          ),
           Provider(
-            create: (_) => RatingApiService(
-              fakeDio(FakeMovieLogAdapter((_) => (201, {}))),
-            ),
+            create: (_) =>
+                fakeRatingService(FakeMovieLogAdapter((_) => (201, {}))),
           ),
           Provider<TmdbMovieService>(create: (_) => fakeTmdbService(tmdb)),
         ],
@@ -131,11 +135,16 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => LearningMemberSession()),
+          ChangeNotifierProvider<AuthViewModel>(
+            create: (_) => fakeAuthViewModel(),
+          ),
+          ChangeNotifierProvider(
+            create: (context) =>
+                SessionRatingsStore(context.read<AuthViewModel>()),
+          ),
           Provider(
-            create: (_) => RatingApiService(
-              fakeDio(FakeMovieLogAdapter((_) => (201, {}))),
-            ),
+            create: (_) =>
+                fakeRatingService(FakeMovieLogAdapter((_) => (201, {}))),
           ),
           Provider<TmdbMovieService>(
             create: (_) => fakeTmdbService(FakeTmdbAdapter(statusCode: 404)),
@@ -191,7 +200,7 @@ void main() {
     expect(find.byIcon(Icons.bookmark_border), findsOneWidget);
   });
 
-  testWidgets('asks to sign up first when there is no member', (tester) async {
+  testWidgets('asks to log in first when signed out', (tester) async {
     await tester.pumpWidget(_app());
     await _openDetail(tester);
 
@@ -199,12 +208,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(RatingDialog), findsNothing);
-    expect(find.text('먼저 회원가입을 완료해 주세요.'), findsOneWidget);
+    expect(find.text('로그인이 필요해요.'), findsOneWidget);
   });
 
-  testWidgets('creates a rating for the session member', (tester) async {
-    final server = FakeMovieLogAdapter((_) => (201, {}));
-    await tester.pumpWidget(_app(memberId: 7, ratingServer: server));
+  testWidgets('creates a rating with only the token and shows the result', (
+    tester,
+  ) async {
+    final server = FakeMovieLogAdapter(
+      (_) => (201, ratingResultJson(score: 4, comment: '다시 보고 싶어요')),
+    );
+    final auth = fakeAuthViewModel();
+    await tester.runAsync(() => signIn(auth));
+    await tester.pumpWidget(_app(auth: auth, ratingServer: server));
     await _openDetail(tester);
 
     await tester.tap(find.text('평점 남기기'));
@@ -219,9 +234,14 @@ void main() {
     expect(find.byType(RatingDialog), findsNothing);
     expect(find.text('4점을 남겼어요'), findsOneWidget);
 
+    // 등록 result의 평점으로 '내 평점' 카드가 갱신됨
+    expect(find.text('내 평점 4점'), findsOneWidget);
+    expect(find.text('다시 보고 싶어요'), findsOneWidget);
+
+    // path와 body 어디에도 memberId가 없음
     final request = server.requests.single;
     expect(request.method, 'POST');
-    expect(request.path, '/v6/members/7/ratings');
+    expect(request.path, '/v7/ratings');
     expect(request.data, {
       'movieId': movies.first.id,
       'score': 4,
@@ -238,7 +258,9 @@ void main() {
         {'isSuccess': false, 'code': 'RATING409', 'message': '이미 등록한 영화입니다.'},
       ),
     );
-    await tester.pumpWidget(_app(memberId: 7, ratingServer: server));
+    final auth = fakeAuthViewModel();
+    await tester.runAsync(() => signIn(auth));
+    await tester.pumpWidget(_app(auth: auth, ratingServer: server));
     await _openDetail(tester);
 
     await tester.tap(find.text('평점 남기기'));
@@ -252,5 +274,51 @@ void main() {
     // 실패는 성공과 다른 문구(서버 message)로 SnackBar 안내
     expect(find.text('이미 등록한 영화입니다.'), findsOneWidget);
     expect(find.textContaining('점을 남겼어요'), findsNothing);
+    // 409는 안내만 하고 로그인은 유지
+    expect(auth.status, AuthStatus.signedIn);
   });
+
+  testWidgets('403 shows a message and keeps the session', (tester) async {
+    final server = FakeMovieLogAdapter(
+      (_) => (
+        403,
+        {'isSuccess': false, 'code': 'COMMON403', 'message': '권한이 없습니다.'},
+      ),
+    );
+    final auth = fakeAuthViewModel();
+    await tester.runAsync(() => signIn(auth));
+    await tester.pumpWidget(_app(auth: auth, ratingServer: server));
+    await _openDetail(tester);
+
+    await tester.tap(find.text('평점 남기기'));
+    await tester.pumpAndSettle();
+    await _tapStar(tester, 3);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('내가 등록한 평점만'), findsOneWidget);
+    expect(auth.status, AuthStatus.signedIn);
+  });
+
+  for (final code in ['AUTH401_2', 'AUTH401_3', 'AUTH401_4']) {
+    testWidgets('$code expires the session', (tester) async {
+      final server = FakeMovieLogAdapter(
+        (_) => (401, {'isSuccess': false, 'code': code, 'message': '만료'}),
+      );
+      final auth = fakeAuthViewModel();
+      await tester.runAsync(() => signIn(auth));
+      await tester.pumpWidget(_app(auth: auth, ratingServer: server));
+      await _openDetail(tester);
+
+      await tester.tap(find.text('평점 남기기'));
+      await tester.pumpAndSettle();
+      await _tapStar(tester, 3);
+      await tester.tap(find.text('확인'));
+      await tester.pumpAndSettle();
+
+      expect(auth.status, AuthStatus.signedOut);
+      expect(auth.sessionExpired, isTrue);
+      expect(auth.member, isNull);
+    });
+  }
 }

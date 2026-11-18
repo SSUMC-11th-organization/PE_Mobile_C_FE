@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../data/models/movie.dart';
+import '../data/models/rating_dto.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_theme.dart';
@@ -109,6 +110,7 @@ class _MovieInfo extends StatelessWidget {
               ),
             ],
           ),
+          const _MyRatingCard(),
           const SizedBox(height: AppSpacing.md),
           Chip(
             label: Text(movie.genre),
@@ -120,6 +122,46 @@ class _MovieInfo extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// 등록 응답(result)으로 받은 내 평점을 보여 주는 카드
+class _MyRatingCard extends StatelessWidget {
+  const _MyRatingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = context.select<MovieDetailViewModel, RatingDto?>(
+      (viewModel) => viewModel.myRating,
+    );
+    if (rating == null) return const SizedBox.shrink();
+
+    final comment = rating.comment;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.violet.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '내 평점 ${rating.score}점',
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.violet,
+            ),
+          ),
+          if (comment != null && comment.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(comment, style: AppTextStyles.bodySmall),
+          ],
         ],
       ),
     );
@@ -149,13 +191,12 @@ class _BottomActionsState extends State<_BottomActions> {
 
   Future<void> _openRatingDialog() async {
     final viewModel = context.read<MovieDetailViewModel>();
-    // 학습용 회원 ID가 없으면 Dialog를 열지 않고 안내만 합니다.
-    if (viewModel.memberId == null) {
-      _showSnackBar('먼저 회원가입을 완료해 주세요.');
+    // 로그인 전에는 Dialog를 열지 않고 안내만 합니다.
+    if (!viewModel.isSignedIn) {
+      _showSnackBar('로그인이 필요해요.');
       return;
     }
 
-    var savedScore = 0;
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => RatingDialog(
@@ -167,12 +208,13 @@ class _BottomActionsState extends State<_BottomActions> {
             if (mounted) _showSnackBar(message);
             throw StateError(message);
           }
-          savedScore = score;
         },
       ),
     );
     if (saved != true || !mounted) return;
-    _showSnackBar('$savedScore점을 남겼어요');
+    // 서버가 돌려준 result의 점수로 안내합니다.
+    final created = viewModel.myRating;
+    if (created != null) _showSnackBar('${created.score}점을 남겼어요');
   }
 
   @override

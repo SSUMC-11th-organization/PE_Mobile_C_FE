@@ -1,165 +1,201 @@
-// 내가 등록한 평점 ViewModel 테스트
+// 내가 등록한 평점 ViewModel 테스트 (이번 세션 평점 + 토큰 기반 수정·삭제)
 import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:movielog/data/services/rating_api_service.dart';
+import 'package:movielog/data/models/rating_dto.dart';
 import 'package:movielog/data/services/tmdb_movie_service.dart';
+import 'package:movielog/view_models/auth_view_model.dart';
 import 'package:movielog/view_models/my_ratings_view_model.dart';
+import 'package:movielog/view_models/session_ratings_store.dart';
 
 import 'helpers/fake_movielog.dart';
+
+Map<String, Object> _failure(String code, String message) => {
+  'isSuccess': false,
+  'code': code,
+  'message': message,
+};
+
+RatingDto _rating({required int ratingId, int movieId = 13, int score = 4}) =>
+    RatingDto.fromJson(
+      ratingResultJson(
+            ratingId: ratingId,
+            movieId: movieId,
+            score: score,
+          )['result']!
+          as Map<String, dynamic>,
+    );
 
 void main() {
   late FakeMovieLogAdapter ratingServer;
   late FakeMovieLogAdapter tmdbServer;
+  late AuthViewModel auth;
+  late SessionRatingsStore store;
   late MyRatingsViewModel viewModel;
 
-  setUp(() {
-    ratingServer = FakeMovieLogAdapter((_) => (200, sampleRatingsJson()));
+  setUp(() async {
+    ratingServer = FakeMovieLogAdapter((_) => (200, {}));
     tmdbServer = FakeMovieLogAdapter((options) {
       final id = int.parse(options.path.split('/').last);
       return (200, movieDetailJson(id));
     });
+    auth = fakeAuthViewModel();
+    await signIn(auth);
+    // ratingId 3(movieId 13, 3점), ratingId 1(movieId 550, 5점)
+    store = seededRatingsStore(auth);
     viewModel = MyRatingsViewModel(
-      RatingApiService(fakeDio(ratingServer)),
+      fakeRatingService(ratingServer),
       TmdbMovieService(fakeDio(tmdbServer)),
-      1, // 학습용 회원 ID
+      store,
+      auth,
     );
   });
+
+  List<RequestOptions> requestsOf(String method) =>
+      ratingServer.requests.where((r) => r.method == method).toList();
 
   test('starts idle', () {
     expect(viewModel.status, MyRatingsStatus.idle);
   });
 
-  test('loads ratings for member 1 and fills moviesById', () async {
-    final load = viewModel.load();
-    expect(viewModel.status, MyRatingsStatus.loading);
-    await load;
+  group('목록', () {
+    test('shows the session ratings without a list GET', () async {
+      await viewModel.load();
 
-    expect(ratingServer.requests.single.path, '/v5/members/1/ratings');
-    expect(viewModel.status, MyRatingsStatus.success);
-    expect(viewModel.ratings, hasLength(2));
-    expect(viewModel.moviesById.keys, unorderedEquals([13, 550]));
-    expect(viewModel.moviesById[550]!.title, '영화 550');
-    expect(viewModel.isLoadingMovies, isFalse);
-  });
+      expect(viewModel.status, MyRatingsStatus.success);
+      expect(viewModel.ratings.map((r) => r.ratingId), [3, 1]);
+      expect(viewModel.moviesById.keys, unorderedEquals([13, 550]));
+      expect(ratingServer.requests, isEmpty);
+    });
 
-  test('an empty list becomes empty', () async {
-    ratingServer.route = (_) => (200, <Object>[]);
-    await viewModel.load();
+    test('an empty session becomes empty', () async {
+      viewModel = MyRatingsViewModel(
+        fakeRatingService(ratingServer),
+        TmdbMovieService(fakeDio(tmdbServer)),
+        SessionRatingsStore(auth),
+        auth,
+      );
 
-    expect(viewModel.status, MyRatingsStatus.empty);
-    expect(tmdbServer.requests, isEmpty);
-  });
+      await viewModel.load();
 
-  test('a 404 becomes error with a message', () async {
-    ratingServer.route = (_) => (404, {'statusCode': 404});
-    await viewModel.load();
+      expect(viewModel.status, MyRatingsStatus.empty);
+    });
 
-    expect(viewModel.status, MyRatingsStatus.error);
-    expect(viewModel.errorMessage, '존재하지 않는 회원입니다.');
-  });
+    test('a failed movie lookup keeps the rating list', () async {
+      tmdbServer.route = (options) => options.path.endsWith('/13')
+          ? (404, {'status_message': 'not found'})
+          : (200, movieDetailJson(550));
 
-  test('a failed movie lookup keeps the rating list', () async {
-    tmdbServer.route = (options) => options.path.endsWith('/13')
-        ? (404, {'status_message': 'not found'})
-        : (200, movieDetailJson(550));
-    await viewModel.load();
+      await viewModel.load();
 
-    expect(viewModel.status, MyRatingsStatus.success);
-    expect(viewModel.moviesById.keys, [550]);
-  });
+      expect(viewModel.ratings, hasLength(2));
+      expect(viewModel.moviesById.containsKey(13), isFalse);
+      expect(viewModel.moviesById.containsKey(550), isTrue);
+    });
 
-  test('reloading does not refetch cached movies', () async {
-    await viewModel.load();
-    await viewModel.load();
+    test('reloading does not refetch cached movies', () async {
+      await viewModel.load();
+      final firstCount = tmdbServer.requests.length;
 
-    expect(tmdbServer.requests, hasLength(2));
+      await viewModel.load();
+
+      expect(tmdbServer.requests.length, firstCount);
+    });
+
+    test('a rating added to the store shows up', () async {
+      await viewModel.load();
+
+      store.add(_rating(ratingId: 9, movieId: 77));
+
+      expect(viewModel.ratings.first.ratingId, 9);
+    });
   });
 
   group('수정·삭제', () {
-    // 쓰기 요청은 writeRoute로, 목록 GET은 기본 목록으로 응답
-    void serve(
-      (int, Object) Function(RequestOptions options) writeRoute, {
-      int getStatus = 200,
-    }) {
-      ratingServer.route = (options) => options.method == 'GET'
-          ? (getStatus, getStatus == 200 ? sampleRatingsJson() : {})
-          : writeRoute(options);
-    }
+    setUp(() async => viewModel.load());
 
-    Map<String, Object> failure(String code, String message) => {
-      'isSuccess': false,
-      'code': code,
-      'message': message,
-    };
+    test('updateRating replaces the card with the PATCH result', () async {
+      ratingServer.route = (_) => (
+        200,
+        ratingResultJson(ratingId: 3, movieId: 13, score: 4, comment: '좋아요'),
+      );
 
-    test('updateRating sends PATCH and reloads the list', () async {
-      serve((_) => (200, {}));
       await viewModel.updateRating(ratingId: 3, score: 4, comment: '좋아요');
 
-      final patch = ratingServer.requests.first;
-      expect(patch.method, 'PATCH');
-      expect(patch.path, '/v6/members/1/ratings/3');
+      final patch = requestsOf('PATCH').single;
+      expect(patch.path, '/v7/ratings/3');
       expect(patch.data, {'score': 4, 'comment': '좋아요'});
-      expect(ratingServer.requests.last.method, 'GET');
-      expect(viewModel.status, MyRatingsStatus.success);
-      expect(viewModel.refreshWarning, isNull);
+      final card = viewModel.ratings.firstWhere((r) => r.ratingId == 3);
+      expect(card.score, 4);
+      expect(card.comment, '좋아요');
+      // 목록을 서버에서 다시 받지 않음
+      expect(requestsOf('GET'), isEmpty);
     });
 
     test('a failed write rethrows with the server message', () async {
-      serve((_) => (400, failure('COMMON400', '점수는 1~5 사이여야 합니다.')));
+      ratingServer.route = (_) => (400, _failure('COMMON400', '점수를 확인해 주세요.'));
 
       await expectLater(
         viewModel.updateRating(ratingId: 3, score: 4),
         throwsA(isA<DioException>()),
       );
-      expect(viewModel.message, '점수는 1~5 사이여야 합니다.');
-      // 400은 목록을 다시 조회하지 않음
-      expect(ratingServer.requests, hasLength(1));
+
+      expect(viewModel.message, '점수를 확인해 주세요.');
+      expect(viewModel.ratings.firstWhere((r) => r.ratingId == 3).score, 3);
     });
 
-    test('404 on delete reloads the list before rethrowing', () async {
-      serve((_) => (404, failure('COMMON404', '평점을 찾을 수 없습니다.')));
+    test('deleteRating removes the card after 200', () async {
+      await viewModel.deleteRating(3);
+
+      expect(requestsOf('DELETE').single.path, '/v7/ratings/3');
+      expect(viewModel.ratings.map((r) => r.ratingId), [1]);
+      expect(store.ratings.map((r) => r.ratingId), [1]);
+    });
+
+    test('404 on delete removes the card and rethrows', () async {
+      ratingServer.route = (_) => (404, _failure('COMMON404', '없음'));
 
       await expectLater(
         viewModel.deleteRating(3),
         throwsA(isA<DioException>()),
       );
+
       expect(viewModel.message, contains('이미 삭제되었거나'));
-      expect(ratingServer.requests.last.method, 'GET');
+      expect(viewModel.ratings.map((r) => r.ratingId), [1]);
     });
 
-    test('a saved write with a failed reload only warns', () async {
-      serve((_) => (204, {}), getStatus: 500);
-      await viewModel.deleteRating(3); // 던지지 않음
+    test('403 keeps the card and the session', () async {
+      ratingServer.route = (_) => (403, _failure('COMMON403', '권한 없음'));
 
-      expect(viewModel.status, MyRatingsStatus.error);
-      expect(viewModel.refreshWarning, contains('저장은 완료됐지만'));
+      await expectLater(
+        viewModel.deleteRating(3),
+        throwsA(isA<DioException>()),
+      );
+
+      expect(viewModel.message, contains('내가 등록한 평점만'));
+      expect(viewModel.ratings, hasLength(2));
+      expect(auth.status, AuthStatus.signedIn);
     });
 
     test('deleteSelectedRatings keeps only the failed ids selected', () async {
-      serve(
-        (options) => options.path.endsWith('/1')
-            ? (500, failure('COMMON500', '서버 오류'))
-            : (204, {}),
-      );
-      await viewModel.load();
+      ratingServer.route = (options) => options.path.endsWith('/1')
+          ? (500, _failure('COMMON500', '오류'))
+          : (200, {});
       viewModel
         ..toggleSelected(3)
         ..toggleSelected(1);
 
       await viewModel.deleteSelectedRatings();
 
-      expect(viewModel.isDeletingSelected, isFalse);
       expect(viewModel.selectedRatingIds, {1});
-      expect(viewModel.message, '1개 항목을 삭제하지 못했습니다. 선택된 항목을 다시 확인해 주세요.');
+      expect(viewModel.ratings.map((r) => r.ratingId), [1]);
+      expect(viewModel.message, contains('1개 항목을 삭제하지 못했습니다'));
     });
 
     test(
       'a second delete of the same rating is ignored while in flight',
       () async {
-        serve((_) => (204, {}));
         ratingServer.gate = Completer<void>();
 
         final first = viewModel.deleteRating(3);
@@ -168,30 +204,53 @@ void main() {
         ratingServer.gate!.complete();
         await first;
 
-        expect(
-          ratingServer.requests.where((r) => r.method == 'DELETE'),
-          hasLength(1),
-        );
+        expect(requestsOf('DELETE'), hasLength(1));
         expect(viewModel.isDeleting(3), isFalse);
       },
     );
+  });
 
-    test('403 and 404 messages differ and both reload the list', () async {
-      serve((_) => (403, failure('COMMON403', '권한 없음')));
-      await expectLater(
-        viewModel.deleteRating(3),
-        throwsA(isA<DioException>()),
-      );
-      expect(viewModel.message, contains('내가 등록한 평점만'));
-      expect(ratingServer.requests.last.method, 'GET');
+  group('로그인 세션', () {
+    setUp(() async => viewModel.load());
 
-      serve((_) => (404, {'error': 'no code'}));
-      await expectLater(
-        viewModel.deleteRating(3),
-        throwsA(isA<DioException>()),
-      );
-      expect(viewModel.message, contains('이미 삭제되었거나'));
-      expect(ratingServer.requests.last.method, 'GET');
+    for (final code in ['AUTH401_2', 'AUTH401_3', 'AUTH401_4']) {
+      test('$code on update expires the session', () async {
+        ratingServer.route = (_) => (401, _failure(code, '만료'));
+
+        await expectLater(
+          viewModel.updateRating(ratingId: 3, score: 4),
+          throwsA(isA<DioException>()),
+        );
+
+        expect(auth.status, AuthStatus.signedOut);
+        expect(auth.sessionExpired, isTrue);
+        // 세션이 바뀌어 이번 세션의 평점도 비워짐
+        expect(viewModel.ratings, isEmpty);
+      });
+    }
+
+    test('logging out clears the session ratings', () async {
+      await auth.logout();
+
+      expect(store.ratings, isEmpty);
+      expect(viewModel.status, MyRatingsStatus.empty);
+    });
+
+    test('a PATCH that finishes after logout is not applied', () async {
+      ratingServer.gate = Completer<void>();
+      ratingServer.route = (_) =>
+          (200, ratingResultJson(ratingId: 3, movieId: 13, score: 1));
+
+      final updating = viewModel.updateRating(ratingId: 3, score: 1);
+      await auth.logout();
+      // 다시 로그인해 새 세션에서 같은 영화의 평점을 등록한 상황
+      await signIn(auth);
+      store.add(_rating(ratingId: 3, score: 5));
+      ratingServer.gate!.complete();
+      await updating;
+
+      // 이전 세션의 늦은 응답(1점)이 새 세션의 평점(5점)을 덮어쓰지 않음
+      expect(store.ratings.single.score, 5);
     });
   });
 }

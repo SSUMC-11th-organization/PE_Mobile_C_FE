@@ -86,14 +86,12 @@ class MyRatingsScreen extends StatelessWidget {
             child: switch (viewModel.status) {
               MyRatingsStatus.idle ||
               MyRatingsStatus.loading => const LoadingView(),
+              // v7에는 토큰 기반 '내 평점 목록 GET'이 없어 이번 로그인에서 등록한 평점만 보여 줍니다.
               MyRatingsStatus.empty => const EmptyView(
-                message: '아직 등록한 평점이 없어요.\n영화를 보고 첫 평점을 남겨 보세요!',
+                message: '이번 로그인에서 등록한 평점이 없어요.\n영화 상세에서 평점을 남겨 보세요!',
               ),
               MyRatingsStatus.error => ErrorView(
-                message:
-                    viewModel.refreshWarning ??
-                    viewModel.errorMessage ??
-                    '평점을 불러오지 못했어요.',
+                message: viewModel.message ?? '평점을 불러오지 못했어요.',
                 onRetry: viewModel.load,
               ),
               MyRatingsStatus.success => _RatingList(viewModel: viewModel),

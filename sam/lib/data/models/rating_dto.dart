@@ -1,4 +1,4 @@
-// 내가 등록한 평점 DTO (GET /v5/members/{memberId}/ratings 의 배열 원소)
+// 평점 DTO (v7 공개 목록의 배열 원소, 등록·수정 응답의 result)
 class RatingDto {
   const RatingDto({
     required this.ratingId,

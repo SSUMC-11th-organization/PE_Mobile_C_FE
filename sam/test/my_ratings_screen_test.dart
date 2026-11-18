@@ -7,15 +7,22 @@ import 'package:provider/provider.dart';
 import 'package:movielog/screens/main_screen.dart';
 import 'package:movielog/screens/my_ratings_screen.dart';
 import 'package:movielog/screens/profile_screen.dart';
-import 'package:movielog/data/services/rating_api_service.dart';
 import 'package:movielog/data/services/tmdb_movie_service.dart';
 import 'package:movielog/theme/app_theme.dart';
+import 'package:movielog/view_models/auth_view_model.dart';
 import 'package:movielog/view_models/my_ratings_view_model.dart';
 
 import 'helpers/fake_movielog.dart';
 
 // 실제 AppRouter와 같은 구조: 탭(ShellRoute) 안의 /my 아래에 ratings를 두고 root Navigator에 표시
-Widget _app(FakeMovieLogAdapter ratingServer, FakeMovieLogAdapter tmdbServer) {
+// ratings: 이번 세션에 등록해 둔 평점 (기본은 sampleRatingsJson)
+Widget _app(
+  FakeMovieLogAdapter ratingServer,
+  FakeMovieLogAdapter tmdbServer, {
+  List<Map<String, dynamic>>? ratings,
+}) {
+  final auth = fakeAuthViewModel();
+  final store = seededRatingsStore(auth, ratings);
   final rootKey = GlobalKey<NavigatorState>();
   final router = GoRouter(
     initialLocation: '/my',
@@ -33,9 +40,10 @@ Widget _app(FakeMovieLogAdapter ratingServer, FakeMovieLogAdapter tmdbServer) {
                 parentNavigatorKey: rootKey,
                 builder: (_, _) => ChangeNotifierProvider(
                   create: (_) => MyRatingsViewModel(
-                    RatingApiService(fakeDio(ratingServer)),
+                    fakeRatingService(ratingServer),
                     TmdbMovieService(fakeDio(tmdbServer)),
-                    1, // 학습용 회원 ID
+                    store,
+                    auth,
                   )..load(),
                   child: const MyRatingsScreen(),
                 ),
@@ -46,7 +54,10 @@ Widget _app(FakeMovieLogAdapter ratingServer, FakeMovieLogAdapter tmdbServer) {
       ),
     ],
   );
-  return MaterialApp.router(theme: AppTheme.light, routerConfig: router);
+  return ChangeNotifierProvider<AuthViewModel>.value(
+    value: auth,
+    child: MaterialApp.router(theme: AppTheme.light, routerConfig: router),
+  );
 }
 
 FakeMovieLogAdapter _tmdb() => FakeMovieLogAdapter(
@@ -101,26 +112,42 @@ void main() {
     expect(find.text('포스터 정보 없음'), findsOneWidget);
   });
 
-  testWidgets('shows the empty message', (tester) async {
-    await tester.pumpWidget(
-      _app(FakeMovieLogAdapter((_) => (200, <Object>[])), _tmdb()),
-    );
+  testWidgets('shows the empty message for a new session', (tester) async {
+    final server = FakeMovieLogAdapter((_) => (200, {}));
+    await tester.pumpWidget(_app(server, _tmdb(), ratings: const []));
     await _openRatings(tester);
 
-    expect(find.textContaining('아직 등록한 평점이 없어요'), findsOneWidget);
+    expect(find.textContaining('이번 로그인에서 등록한 평점이 없어요'), findsOneWidget);
+    // 토큰 기반 목록 GET이 없으므로 서버에 목록을 요청하지 않음
+    expect(server.requests, isEmpty);
   });
 
-  testWidgets('shows the error message and retries', (tester) async {
-    final server = FakeMovieLogAdapter((_) => (404, {'statusCode': 404}));
+  testWidgets('a saved edit updates the card from the PATCH result', (
+    tester,
+  ) async {
+    final server = FakeMovieLogAdapter(
+      (_) => (
+        200,
+        ratingResultJson(
+          ratingId: 1,
+          movieId: 550,
+          score: 2,
+          comment: '다시 보니 별로',
+        ),
+      ),
+    );
     await tester.pumpWidget(_app(server, _tmdb()));
     await _openRatings(tester);
 
-    expect(find.text('존재하지 않는 회원입니다.'), findsOneWidget);
-
-    server.route = (_) => (200, sampleRatingsJson());
-    await tester.tap(find.text('다시 시도'));
+    await tester.tap(find.byTooltip('수정').at(1));
     await tester.pumpAndSettle();
-    expect(find.text('영화 550'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '다시 보니 별로');
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('평점을 수정했어요'), findsOneWidget);
+    expect(find.text('다시 보니 별로'), findsOneWidget);
+    expect(find.text('별점 2 / 5'), findsOneWidget);
   });
 
   group('수정·삭제 버튼', () {
@@ -152,7 +179,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final patch = server.requests.firstWhere((r) => r.method == 'PATCH');
-      expect(patch.path, '/v6/members/1/ratings/1');
+      expect(patch.path, '/v7/ratings/1');
       expect(patch.data, {'score': 5, 'comment': '최고의 영화!'});
       // 409는 서버 문구로 Dialog 안에 안내하고 입력은 그대로 둠
       expect(find.text('같은 내용으로는 수정할 수 없습니다.'), findsOneWidget);
@@ -185,15 +212,10 @@ void main() {
     });
 
     testWidgets('deleting the last rating shows the empty UI', (tester) async {
-      var ratings = [sampleRatingsJson().first];
-      final server = FakeMovieLogAdapter((options) {
-        if (options.method == 'DELETE') {
-          ratings = [];
-          return (204, {});
-        }
-        return (200, ratings);
-      });
-      await tester.pumpWidget(_app(server, _tmdb()));
+      final server = FakeMovieLogAdapter((_) => (200, {}));
+      await tester.pumpWidget(
+        _app(server, _tmdb(), ratings: [sampleRatingsJson().first]),
+      );
       await _openRatings(tester);
 
       await tester.tap(find.byTooltip('삭제'));
@@ -203,9 +225,9 @@ void main() {
 
       expect(
         server.requests.singleWhere((r) => r.method == 'DELETE').path,
-        '/v6/members/1/ratings/3',
+        '/v7/ratings/3',
       );
-      expect(find.textContaining('아직 등록한 평점이 없어요'), findsOneWidget);
+      expect(find.textContaining('이번 로그인에서 등록한 평점이 없어요'), findsOneWidget);
       expect(find.text('평점을 삭제했어요'), findsOneWidget);
     });
   });
