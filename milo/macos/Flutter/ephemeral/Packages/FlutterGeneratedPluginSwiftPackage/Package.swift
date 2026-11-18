@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "FlutterGeneratedPluginSwiftPackage", type: .static, targets: ["FlutterGeneratedPluginSwiftPackage"])
     ],
     dependencies: [
+        .package(name: "flutter_secure_storage_darwin", path: "../.packages/flutter_secure_storage_darwin-0.4.3"),
         .package(name: "shared_preferences_foundation", path: "../.packages/shared_preferences_foundation-2.6.1"),
         .package(name: "FlutterFramework", path: "../.packages/FlutterFramework")
     ],
@@ -22,6 +23,7 @@ let package = Package(
         .target(
             name: "FlutterGeneratedPluginSwiftPackage",
             dependencies: [
+                .product(name: "flutter-secure-storage-darwin", package: "flutter_secure_storage_darwin"),
                 .product(name: "shared-preferences-foundation", package: "shared_preferences_foundation"),
                 .product(name: "FlutterFramework", package: "FlutterFramework")
             ]

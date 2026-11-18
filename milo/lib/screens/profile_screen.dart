@@ -2,12 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:movielog/theme/app_colors.dart';
 import 'package:movielog/theme/app_text_styles.dart';
+import 'package:movielog/view_models/auth_view_model.dart';
+import 'package:movielog/widgets/movielog_button.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final member = context.select<AuthViewModel, MemberInfo?>((a) => a.member);
+    final memberStatus = context.select<AuthViewModel, MemberLoadStatus>(
+      (a) => a.memberStatus,
+    );
+
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: CommonAppBar(
@@ -20,8 +28,39 @@ class ProfileScreen extends StatelessWidget {
           letterSpacing: -0.55,
           color: Color(0xFF4F378A),
         ),
+        actions: [
+          IconButton(
+            tooltip: '로그아웃',
+            icon: const Icon(Icons.logout),
+            // 이동 코드는 쓰지 않습니다. signedOut이 되면 Router가 /login으로 보냅니다.
+            onPressed: () => context.read<AuthViewModel>().logout(),
+          ),
+        ],
       ),
-      body: const SafeArea(child: ProfileBody()),
+      body: SafeArea(
+        child: member != null
+            ? const ProfileBody()
+            : memberStatus == MemberLoadStatus.error
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('내 정보를 불러오지 못했어요.'),
+                      const SizedBox(height: 12),
+                      MovieLogButton(
+                        label: '다시 시도',
+                        onPressed: () => context
+                            .read<AuthViewModel>()
+                            .loadMember(force: true),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : const Center(child: CircularProgressIndicator()),
+      ),
     );
   }
 }
@@ -112,6 +151,8 @@ class ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final member = context.select<AuthViewModel, MemberInfo?>((a) => a.member);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -120,24 +161,38 @@ class ProfileHeader extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '무비러버',
+          member?.nickname ?? '불러오는 중…',
           textAlign: TextAlign.center,
           style: AppTextStyles.titleLarge.copyWith(color: AppColors.onSurface),
         ),
+        if (member != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            formatJoinedDate(member.createdAt), // 예: 2026.10.10 가입
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
+        // v7 GET me에는 소개글 필드가 없어서, 그 자리에 이메일을 보여줍니다.
         Text(
-          '매주 주말엔 영화관으로 출근하는 프로 관람객.\n좋은 영화를 보고 기록하는 것을 좋아합니다.',
+          member?.email ?? '',
           textAlign: TextAlign.center,
           style: AppTextStyles.bodyMedium.copyWith(
             color: AppColors.onSurfaceVariant,
           ),
         ),
+
         const SizedBox(height: 8),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           padding: const EdgeInsets.only(top: 8),
           child: ElevatedButton(
-            onPressed: () {},
+            // member가 없으면 비활성화합니다. (프로필 수정 화면이 member를 필요로 함)
+            onPressed: member == null
+                ? null
+                : () => context.push('/my/profile/edit'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,
@@ -287,4 +342,11 @@ class GenreTag extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9999)),
     );
   }
+}
+
+String formatJoinedDate(DateTime createdAt) {
+  final d = createdAt.toLocal();
+  final mm = d.month.toString().padLeft(2, '0');
+  final dd = d.day.toString().padLeft(2, '0');
+  return '${d.year}.$mm.$dd 가입';
 }

@@ -1,76 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:movielog/theme/app_colors.dart';
+import 'package:movielog/view_models/auth_view_model.dart';
+import 'package:provider/provider.dart';
 
-class MainScreen extends StatelessWidget {
+class MainScreen extends StatefulWidget {
   const MainScreen({
     super.key,
     required this.currentIndex,
     required this.child,
   });
 
-  // const MainScreen({super.key, required this.navigationShell});
-  // final StatefulNavigationShell navigationShell;
-
   final int currentIndex;
   final Widget child;
 
-  static const _paths = ['/home', '/movies', '/my'];
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
 
-  void _onDestinationSelected(BuildContext context, int index) {
-    // navigationShell.goBranch(
-    //   index,
-    //   initialLocation: index == navigationShell.currentIndex,
-    // );
-    if (index == currentIndex) return;
-    context.go(_paths[index]);
+class _MainScreenState extends State<MainScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 어느 탭으로 진입하든 내 정보를 한 번 불러와 AuthViewModel.member에 보관합니다.
+      context.read<AuthViewModel>().loadMember();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // body: navigationShell,
-      body: child,
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          height: 80,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                offset: const Offset(0, -4),
-                blurRadius: 20,
-                spreadRadius: -10,
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.home_outlined,
-                selectedIcon: Icons.home,
-                label: '홈',
-                isSelected: currentIndex == 0,
-                onTap: () => _onDestinationSelected(context, 0),
-              ),
-              _NavItem(
-                icon: Icons.movie_outlined,
-                selectedIcon: Icons.movie,
-                label: '영화',
-                isSelected: currentIndex == 1,
-                onTap: () => _onDestinationSelected(context, 1),
-              ),
-              _NavItem(
-                icon: Icons.person_outline,
-                selectedIcon: Icons.person,
-                label: '마이',
-                isSelected: currentIndex == 2,
-                onTap: () => _onDestinationSelected(context, 2),
-              ),
-            ],
+      body: widget.child,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.outline)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavItem(
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home,
+                  label: '홈',
+                  isSelected: widget.currentIndex == 0,
+                  onTap: () => context.go('/home'),
+                ),
+                _NavItem(
+                  icon: Icons.movie_outlined,
+                  selectedIcon: Icons.movie,
+                  label: '영화',
+                  isSelected: widget.currentIndex == 1,
+                  onTap: () => context.go('/movies'),
+                ),
+                _NavItem(
+                  icon: Icons.person_outline,
+                  selectedIcon: Icons.person,
+                  label: '마이',
+                  isSelected: widget.currentIndex == 2,
+                  onTap: () => context.go('/my'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

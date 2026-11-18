@@ -1,19 +1,24 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:movielog/data/models/common_response.dart';
+import 'package:movielog/core/network/api_error.dart';
 import 'package:movielog/data/models/rating_with_movie.dart';
 import 'package:movielog/data/models/tmdb_movie_dto.dart';
 import 'package:movielog/data/services/rating_api_service.dart';
 import 'package:movielog/data/services/tmdb_movie_service.dart';
-
-const int sampleMemberId = 1; // 인증된 ‘내 계정’이 아닌 학습용 데이터입니다.
+import 'package:movielog/view_models/auth_view_model.dart';
 
 enum MyRatingsLoadStatus { idle, loading, success, empty, error }
 
 class MyRatingsViewModel extends ChangeNotifier {
-  MyRatingsViewModel(this._service, this._movieService, this.memberId);
+  MyRatingsViewModel(
+    this._service,
+    this._movieService,
+    this._auth,
+    this.memberId,
+  );
   final RatingApiService _service;
   final TmdbMovieService _movieService;
+  final AuthViewModel _auth;
   final int memberId;
   final Map<int, TmdbMovieDto?> _movieCache = {};
   int _requestVersion = 0;
@@ -50,6 +55,17 @@ class MyRatingsViewModel extends ChangeNotifier {
   void toggleSelected(int ratingId) {
     if (!selectedRatingIds.remove(ratingId)) selectedRatingIds.add(ratingId);
     _notify();
+  }
+
+  /// 401(AUTH401_2/3/4)이면 세션을 정리하고 true를 돌려줍니다.
+  /// 요청을 보낸 뒤 세션이 바뀌었다면(다른 계정으로 재로그인 등) 새 세션은 지우지 않습니다.
+  Future<bool> _handleSessionExpired(DioException error, int session) async {
+    final code = apiErrorCode(error);
+    final expired =
+        code == 'AUTH401_2' || code == 'AUTH401_3' || code == 'AUTH401_4';
+    if (!expired) return false;
+    if (session == _auth.sessionVersion) await _auth.expireSession();
+    return true;
   }
 
   Future<void> load() async {
@@ -113,14 +129,16 @@ class MyRatingsViewModel extends ChangeNotifier {
     required int score,
     String? comment,
   }) async {
+    final session = _auth.sessionVersion;
     try {
       await _service.updateRating(
-        memberId: memberId,
         ratingId: ratingId,
         score: score,
         comment: comment,
       );
     } on DioException catch (error) {
+      // 세션 만료: 정리는 Router가 처리하고, Dialog는 실패로 끝냅니다.
+      if (await _handleSessionExpired(error, session)) rethrow;
       final errorMessage = writeErrorMessage(error);
       if (shouldRefreshAfterRatingError(error)) await load();
       message = errorMessage; // load()가 message를 지우므로 그 뒤에 다시 설정합니다.
@@ -131,9 +149,11 @@ class MyRatingsViewModel extends ChangeNotifier {
   }
 
   Future<void> deleteRating(int ratingId) async {
+    final session = _auth.sessionVersion;
     try {
-      await _service.deleteRating(memberId: memberId, ratingId: ratingId);
+      await _service.deleteRating(ratingId);
     } on DioException catch (error) {
+      if (await _handleSessionExpired(error, session)) rethrow;
       final errorMessage = writeErrorMessage(error);
       if (shouldRefreshAfterRatingError(error)) await load();
       message = errorMessage;
@@ -145,15 +165,21 @@ class MyRatingsViewModel extends ChangeNotifier {
 
   Future<void> deleteSelectedRatings() async {
     if (isDeletingSelected || selectedRatingIds.isEmpty) return;
+    final session = _auth.sessionVersion;
     isDeletingSelected = true;
     notifyListeners();
     var failed = 0;
+    var expired = false;
     try {
       for (final ratingId in selectedRatingIds.toList()) {
         try {
-          await _service.deleteRating(memberId: memberId, ratingId: ratingId);
+          await _service.deleteRating(ratingId);
           selectedRatingIds.remove(ratingId);
-        } on DioException {
+        } on DioException catch (error) {
+          if (await _handleSessionExpired(error, session)) {
+            expired = true;
+            break; // 토큰이 무효면 나머지 요청도 같은 401이므로 중단합니다.
+          }
           failed++;
           // 실패한 항목은 선택 상태를 유지합니다.
         }
@@ -162,6 +188,7 @@ class MyRatingsViewModel extends ChangeNotifier {
       isDeletingSelected = false;
       _notify(); // 예상하지 못한 오류에도 로딩을 해제합니다.
     }
+    if (expired) return; // Router가 /login으로 보냅니다. 목록 새로고침은 하지 않습니다.
     await _refreshAfterWrite(); // GET 실패는 삭제 성공 여부와 분리합니다.
     if (failed > 0) {
       message = '$failed개 항목을 삭제하지 못했습니다. 선택된 항목을 다시 확인해 주세요.';
@@ -175,19 +202,4 @@ class MyRatingsViewModel extends ChangeNotifier {
     _requestVersion++;
     super.dispose();
   }
-}
-
-String writeErrorMessage(DioException error) {
-  final data = error.response?.data;
-  final common = data is Map<String, dynamic>
-      ? CommonResponse<Object?>.fromJson(data, (value) => value)
-      : null;
-  return common?.message ?? '요청에 실패했습니다. 잠시 후 다시 시도해 주세요.';
-}
-
-bool shouldRefreshAfterRatingError(DioException error) {
-  final data = error.response?.data;
-  final code = data is Map<String, dynamic> ? data['code'] as String? : null;
-  // 403·404는 화면에 남은 목록이 서버 상태와 어긋났다는 뜻이므로 다시 조회해서 맞춥니다.
-  return code == 'COMMON403' || code == 'COMMON404';
 }
