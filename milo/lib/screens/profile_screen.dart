@@ -100,6 +100,22 @@ class ProfileBody extends StatelessWidget {
                 color: AppColors.primary,
               ),
             ),
+            const SizedBox(height: 12),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: AppColors.outline, width: 1),
+              ),
+              title: const Text('내 즐겨찾기'),
+              titleTextStyle: AppTextStyles.titleMedium.copyWith(
+                color: AppColors.onSurface,
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: AppColors.primary,
+              ),
+              onTap: () => context.push('/my/favorites'),
+            ),
             const SizedBox(height: 32),
             const FavoriteGenres(),
           ],
