@@ -445,7 +445,7 @@ class _RatingTile extends StatelessWidget {
       builder: (_) => RatingDialog(
         initialScore: rating.score,
         initialComment: rating.comment, // null이면 TextField가 빈 칸으로 시작합니다.
-        onSubmit: (score, comment) => viewModel.updateRating(
+        onSubmit: (score, comment, _) => viewModel.updateRating(
           ratingId: rating.ratingId,
           score: score,
           comment: comment,

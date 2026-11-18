@@ -1,16 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:movielog/core/network/auth_interceptor.dart';
+//import 'package:movielog/core/network/masked_log_interceptor.dart';
 import 'package:movielog/storage/token_storage.dart';
-
-// Dio createMovieLogClient() {
-//   return Dio(
-//     BaseOptions(
-//       baseUrl: 'https://workbook.devnoco.com',
-//       connectTimeout: const Duration(seconds: 10),
-//       receiveTimeout: const Duration(seconds: 10),
-//     ),
-//   );
-// }
 
 BaseOptions _movieLogOptions() {
   return BaseOptions(
@@ -31,3 +22,17 @@ Dio createAuthMovieLogClient(TokenStorage storage) {
   dio.interceptors.add(AuthInterceptor(storage));
   return dio;
 }
+
+// // 토큰 및 개인 정보를 가려서 출력
+// Dio createMovieLogClient() {
+//   final dio = Dio(_movieLogOptions());
+//   dio.interceptors.add(MaskedLogInterceptor());
+//   return dio;
+// }
+
+// Dio createAuthMovieLogClient(TokenStorage storage) {
+//   final dio = Dio(_movieLogOptions());
+//   dio.interceptors.add(AuthInterceptor(storage));
+//   dio.interceptors.add(MaskedLogInterceptor());
+//   return dio;
+// }

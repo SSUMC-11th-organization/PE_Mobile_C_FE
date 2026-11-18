@@ -9,12 +9,15 @@ class RatingDialog extends StatefulWidget {
     super.key,
     this.initialScore = 0,
     this.initialComment,
+    this.showAddToFavorite = false,
     required this.onSubmit,
   });
 
   final int initialScore;
   final String? initialComment;
-  final Future<void> Function(int score, String? comment) onSubmit;
+  final bool showAddToFavorite;
+  final Future<void> Function(int score, String? comment, bool addToFavorites)
+  onSubmit;
 
   @override
   State<RatingDialog> createState() => _RatingDialogState();
@@ -25,6 +28,7 @@ class _RatingDialogState extends State<RatingDialog> {
   late final _commentController = TextEditingController(
     text: widget.initialComment ?? '',
   );
+  bool _addToFavorites = false;
   bool _isSubmitting = false;
   String? _errorText;
 
@@ -118,6 +122,19 @@ class _RatingDialogState extends State<RatingDialog> {
                   ),
                 ),
               ),
+              if (widget.showAddToFavorite)
+                CheckboxListTile(
+                  value: _addToFavorites,
+                  onChanged: _isSubmitting
+                      ? null
+                      : (value) =>
+                            setState(() => _addToFavorites = value ?? false),
+                  title: const Text('즐겨찾기에도 추가'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary, width: 2),
+                ),
               if (_errorText != null) ...[
                 const SizedBox(height: 8),
                 Text(_errorText!, style: const TextStyle(color: Colors.red)),
@@ -182,7 +199,11 @@ class _RatingDialogState extends State<RatingDialog> {
       return;
     }
     try {
-      await widget.onSubmit(_score, trimmed.isEmpty ? null : trimmed);
+      await widget.onSubmit(
+        _score,
+        trimmed.isEmpty ? null : trimmed,
+        widget.showAddToFavorite && _addToFavorites,
+      );
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (error) {

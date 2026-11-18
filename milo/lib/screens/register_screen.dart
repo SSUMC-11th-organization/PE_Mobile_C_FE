@@ -144,7 +144,6 @@ class _SignUpFormState extends State<SignUpForm> {
     if (!mounted) return;
     if (viewModel.submitStatus == SubmitStatus.success &&
         viewModel.createdMemberId != null) {
-      debugPrint('가입 성공: memberId=${viewModel.createdMemberId}'); // 확인용
       context.read<LearningMemberSession>().setMemberId(
         viewModel.createdMemberId!,
       );
@@ -441,7 +440,7 @@ class _SignUpFormState extends State<SignUpForm> {
                 const SizedBox(width: 4),
                 GestureDetector(
                   onTap: () {
-                    debugPrint('로그인 진행');
+                    context.go('/login');
                   },
                   child: const Text(
                     '로그인',

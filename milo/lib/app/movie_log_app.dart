@@ -3,7 +3,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:movielog/core/network/movie_log_client.dart';
 import 'package:movielog/core/network/tmdb_client.dart';
+import 'package:movielog/core/session/auth_session_bridge.dart';
+import 'package:movielog/core/session/session_guard.dart';
+import 'package:movielog/data/services/favorite_api_service.dart';
 import 'package:movielog/data/services/member_api_service.dart';
+import 'package:movielog/data/services/movie_record_api_service.dart';
 import 'package:movielog/data/services/rating_api_service.dart';
 import 'package:movielog/data/services/sign_up_service.dart';
 import 'package:movielog/data/services/tmdb_movie_service.dart';
@@ -38,6 +42,13 @@ class MovieLogApp extends StatelessWidget {
         Provider<RatingApiService>(
           create: (_) => RatingApiService(publicClient, authClient),
         ),
+        // authClient는 8주차에서 만든 보호용 Dio입니다. 새로 만들지 않고 기존 인스턴스를 사용합니다.
+        Provider<FavoriteApiService>(
+          create: (_) => FavoriteApiService(authClient),
+        ),
+        Provider<MovieRecordApiService>(
+          create: (_) => MovieRecordApiService(authClient),
+        ),
         // 학습용 현재 회원 (가입 결과의 memberId를 보관)
         ChangeNotifierProvider<LearningMemberSession>(
           create: (_) => LearningMemberSession(),
@@ -49,6 +60,23 @@ class MovieLogApp extends StatelessWidget {
             context.read<MemberApiService>(),
             context.read<TokenStorage>(),
           ),
+        ),
+        // AuthViewModel을 읽으므로 반드시 그 뒤에 둡니다.
+        Provider<AuthSessionBridge>(
+          create: (context) {
+            final auth = context.read<AuthViewModel>();
+            return AuthSessionBridge(
+              authSignals: auth,
+              sessionVersion: () => auth.sessionVersion,
+              verifiedEmail: () => auth.status == AuthStatus.signedIn
+                  ? auth.member?.email
+                  : null,
+            );
+          },
+          dispose: (_, bridge) => bridge.dispose(),
+        ),
+        Provider<SessionGuard>(
+          create: (context) => context.read<AuthSessionBridge>().guard,
         ),
       ],
       child: const _MovieLogRouterApp(), // 뒤 절의 Stateful Router 호스트를 사용합니다.

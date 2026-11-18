@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:movielog/theme/app_colors.dart';
+import 'package:movielog/view_models/favorite_detail_view_model.dart';
 import 'package:movielog/view_models/movie_detail_view_model.dart';
+import 'package:movielog/widgets/favorite_button.dart';
 import 'package:movielog/widgets/movie_card.dart';
 import 'package:movielog/widgets/rating_dialog.dart';
 import 'package:provider/provider.dart';
@@ -16,7 +18,70 @@ class MovieDetailScreen extends StatefulWidget {
 }
 
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
-  bool isFavorite = false;
+  // bool isFavorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<FavoriteDetailViewModel>().load();
+    });
+  }
+
+  Future<void> _openRatingDialog() async {
+    final detailVm = context.read<MovieDetailViewModel>();
+    final favoriteVm = context.read<FavoriteDetailViewModel>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final useRecord = favoriteVm.hasLoadedStatus && !favoriteVm.isFavorite;
+    var dismissed = false; // 오류로 Dialog를 닫은 경우
+    String? dismissMessage;
+
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // 저장 중 바깥 탭으로 닫히는 것도 막습니다.
+      builder: (_) => RatingDialog(
+        showAddToFavorite: useRecord,
+        onSubmit: (score, comment, addToFavorites) async {
+          if (!useRecord) {
+            // 이미 즐겨찾기한 영화: 기존 평점 등록 API만 사용합니다.
+            await detailVm.createRating(score: score, comment: comment);
+            if (detailVm.submitStatus != SubmitStatus.success) {
+              throw StateError(detailVm.submitMessage ?? '저장에 실패했습니다.');
+            }
+            return;
+          }
+
+          final result = await detailVm.createMovieRecord(
+            score: score,
+            comment: comment,
+            addToFavorites: addToFavorites,
+          );
+          switch (result.outcome) {
+            case MovieRecordOutcome.saved:
+              return;
+            case MovieRecordOutcome.keepOpen:
+              throw StateError(result.message ?? '저장에 실패했습니다.');
+            case MovieRecordOutcome.dismiss:
+              dismissed = true;
+              dismissMessage = result.message;
+              return; // Dialog를 닫고 아래에서 Snackbar로 안내합니다.
+          }
+        },
+      ),
+    );
+
+    if (!mounted || saved != true) return;
+
+    if (dismissed) {
+      if (dismissMessage != null) {
+        messenger.showSnackBar(SnackBar(content: Text(dismissMessage!)));
+      }
+    } else {
+      messenger.showSnackBar(const SnackBar(content: Text('평점을 저장했습니다.')));
+    }
+    await favoriteVm.load();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,31 +158,36 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            movie.title,
-                            style: const TextStyle(
-                              fontFamily: 'Manrope',
-                              fontSize: 28,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF1B1C1A),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          // Text(
-                          //   '${movie.year} • ${movie.genre} • ${movie.runtimeMinutes}분',
-                          //   style: const TextStyle(
-                          //     fontFamily: 'Manrope',
-                          //     fontSize: 14,
-                          //     color: Color(0xFF494551),
-                          //   ),
-                          // ),
-                          Text(
-                            subtitle,
-                            style: const TextStyle(
-                              fontFamily: 'Manrope',
-                              fontSize: 14,
-                              color: Color(0xFF494551),
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      movie.title,
+                                      style: const TextStyle(
+                                        fontFamily: 'Manrope',
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF1B1C1A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      subtitle,
+                                      style: const TextStyle(
+                                        fontFamily: 'Manrope',
+                                        fontSize: 14,
+                                        color: Color(0xFF494551),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const FavoriteButton(),
+                            ],
                           ),
                           Padding(
                             padding: const EdgeInsets.only(top: 12),
@@ -251,73 +321,8 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        setState(() => isFavorite = !isFavorite);
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              isFavorite
-                                  ? 'Mock 즐겨찾기에 추가했습니다.'
-                                  : 'Mock 즐겨찾기에서 삭제했습니다.',
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.primary),
-                        foregroundColor: AppColors.primary,
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(9999),
-                        ),
-                      ),
-                      icon: Icon(
-                        isFavorite ? Icons.bookmark : Icons.bookmark_border,
-                      ),
-                      label: const Text('즐겨찾기'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: canRate
-                          ? () async {
-                              final saved = await showDialog<bool>(
-                                context: context,
-                                barrierDismissible:
-                                    false, // 저장 중 바깥 탭으로 닫히는 것도 막습니다.
-                                builder: (_) => RatingDialog(
-                                  onSubmit: (score, comment) async {
-                                    final viewModel = context
-                                        .read<MovieDetailViewModel>();
-                                    await viewModel.createRating(
-                                      score: score,
-                                      comment: comment,
-                                    );
-                                    if (viewModel.submitStatus !=
-                                        SubmitStatus.success) {
-                                      throw StateError(
-                                        viewModel.submitMessage ??
-                                            '저장에 실패했습니다.',
-                                      );
-                                    }
-                                  },
-                                ),
-                              );
-
-                              if (!context.mounted || saved != true) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    '평점을 등록했습니다. 마이페이지의 "내가 등록한 평점"에서 확인할 수 있습니다.',
-                                  ),
-                                ),
-                              );
-                            }
-                          : null,
+                      onPressed: canRate ? _openRatingDialog : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
