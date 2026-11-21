@@ -3,6 +3,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/models/tmdb_movie_dto.dart';
+import '../../view_models/auth_view_model.dart';
 import '../../view_models/movie_detail_view_model.dart';
 import '../../view_models/sign_up_view_model.dart';
 import '../../widgets/movie/ratings/rating_dialog.dart';
@@ -41,17 +42,21 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         onSubmit: (score, comment) async {
           final viewModel = context.read<MovieDetailViewModel>();
 
-          await viewModel.createRating(
-            score: score,
-            comment: comment,
-          );
+          await viewModel.createRating(score: score, comment: comment);
+          if (!mounted) return;
 
           if (viewModel.submitStatus != SubmitStatus.success) {
             final message = viewModel.submitMessage ?? '저장에 실패했습니다.';
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(message)),
-              );
+            final auth = context.read<AuthViewModel>();
+            final expired =
+                viewModel.submitErrorCode == 'AUTH401_2' ||
+                viewModel.submitErrorCode == 'AUTH401_3' ||
+                viewModel.submitErrorCode == 'AUTH401_4' ||
+                auth.sessionExpired ||
+                auth.status != AuthStatus.signedIn;
+            if (mounted && !expired) {
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(message)));
             }
             // 실패는 Dialog에도 전달하여 입력을 유지하고 재시도할 수 있게 합니다.
             throw StateError(message);
@@ -64,9 +69,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text(
-          '평점을 등록했습니다. 마이페이지의 "내가 등록한 평점"에서 확인할 수 있습니다.',
-        ),
+        content: Text('평점을 등록했습니다. 마이페이지의 "내가 등록한 평점"에서 확인할 수 있습니다.'),
       ),
     );
   }
@@ -137,6 +140,27 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 ],
               ),
             ),
+            Consumer<MovieDetailViewModel>(
+              builder: (context, viewModel, child) {
+                final rating = viewModel.createdRating;
+                if (rating == null) return const SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.star, color: Colors.amber),
+                      title: const Text('내가 남긴 평점'),
+                      subtitle: Text(
+                        rating.comment == null || rating.comment!.isEmpty
+                            ? '별점 ${rating.score} / 5'
+                            : '별점 ${rating.score} / 5\n${rating.comment}',
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -155,9 +179,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              Consumer<MovieDetailViewModel>(
-                builder: (context, viewModel, child) {
-                  final hasMember = viewModel.memberId != null;
+              Consumer2<AuthViewModel, MovieDetailViewModel>(
+                builder: (context, auth, viewModel, child) {
+                  final isSignedIn = auth.status == AuthStatus.signedIn;
                   final isSubmitting =
                       viewModel.submitStatus == SubmitStatus.submitting;
 
@@ -165,14 +189,21 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ElevatedButton(
-                        onPressed: hasMember && !isSubmitting
+                        onPressed:
+                            isSignedIn &&
+                                !isSubmitting &&
+                                viewModel.createdRating == null
                             ? _openRatingDialog
                             : null,
-                        child: const Text('평점 남기기'),
+                        child: Text(
+                          viewModel.createdRating == null
+                              ? '평점 남기기'
+                              : '평점 등록 완료',
+                        ),
                       ),
-                      if (!hasMember)
+                      if (!isSignedIn)
                         const Text(
-                          '먼저 학습용 회원가입을 완료해 주세요.',
+                          '로그인 후 평점을 남길 수 있어요.',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 12),
                         ),

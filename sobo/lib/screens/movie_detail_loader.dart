@@ -4,8 +4,9 @@ import 'package:provider/provider.dart';
 import '../data/models/tmdb_movie_dto.dart';
 import '../services/rating_api_service.dart';
 import '../services/tmdb_movie_service.dart';
-import '../view_models/learning_member_session.dart';
+import '../view_models/auth_view_model.dart';
 import '../view_models/movie_detail_view_model.dart';
+import '../view_models/session_ratings_store.dart';
 import 'movie/movie_detail_screen.dart';
 
 class MovieDetailLoader extends StatefulWidget {
@@ -31,9 +32,7 @@ class _MovieDetailLoaderState extends State<MovieDetailLoader> {
 
     _movieFuture = widget.initialMovie != null
         ? Future.value(widget.initialMovie!)
-        : context
-        .read<TmdbMovieService>()
-        .fetchMovieDetail(widget.movieId);
+        : context.read<TmdbMovieService>().fetchMovieDetail(widget.movieId);
   }
 
   @override
@@ -48,9 +47,7 @@ class _MovieDetailLoaderState extends State<MovieDetailLoader> {
         }
 
         if (snapshot.hasError || snapshot.data == null) {
-          return const Scaffold(
-            body: Center(child: Text('영화를 불러오지 못했습니다.')),
-          );
+          return const Scaffold(body: Center(child: Text('영화를 불러오지 못했습니다.')));
         }
 
         final movie = snapshot.data!;
@@ -58,7 +55,8 @@ class _MovieDetailLoaderState extends State<MovieDetailLoader> {
         return ChangeNotifierProvider<MovieDetailViewModel>(
           create: (context) => MovieDetailViewModel(
             context.read<RatingApiService>(),
-            context.read<LearningMemberSession>().memberId,
+            context.read<AuthViewModel>(),
+            context.read<SessionRatingsStore>(),
             movie,
           ),
           child: MovieDetailScreen(movie: movie),

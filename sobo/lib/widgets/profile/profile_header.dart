@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../view_models/auth_view_model.dart';
 
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final nickname = context.select<AuthViewModel, String?>(
+      (auth) => auth.member?.nickname,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -26,7 +33,10 @@ class ProfileHeader extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        Text('무비러버', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          nickname ?? '회원 정보 불러오는 중',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
 
         const SizedBox(height: 8),
 

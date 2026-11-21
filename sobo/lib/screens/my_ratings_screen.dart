@@ -27,7 +27,9 @@ class MyRatingsScreen extends StatelessWidget {
               centerTitle: true,
               actions: [
                 TextButton(
-                  onPressed: viewModel.selectedRatingIds.isEmpty || viewModel.isDeletingSelected
+                  onPressed:
+                      viewModel.selectedRatingIds.isEmpty ||
+                          viewModel.isDeletingSelected
                       ? null
                       : () => onDeleteSelectedPressed(context),
                   child: Text('선택 삭제 (${viewModel.selectedRatingIds.length})'),
@@ -49,60 +51,59 @@ class _MyRatingsListView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<MyRatingsViewModel>(
       builder: (context, viewModel, child) {
-          switch (viewModel.status) {
-            case MyRatingsLoadStatus.idle:
-            case MyRatingsLoadStatus.loading:
-              return const Center(child: CircularProgressIndicator());
+        switch (viewModel.status) {
+          case MyRatingsLoadStatus.idle:
+          case MyRatingsLoadStatus.loading:
+            return const Center(child: CircularProgressIndicator());
 
-            case MyRatingsLoadStatus.empty:
-              return const Center(child: Text('등록된 평점이 없습니다.'));
+          case MyRatingsLoadStatus.empty:
+            return const Center(child: Text('등록된 평점이 없습니다.'));
 
-            case MyRatingsLoadStatus.error:
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        viewModel.refreshWarning ??
-                            viewModel.message ??
-                            '평점을 불러오지 못했습니다.',
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => viewModel.load(),
-                        child: const Text('다시 시도'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-
-            case MyRatingsLoadStatus.success:
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Text('학습용 회원 ${viewModel.memberId}의 평점입니다.'),
-                  const SizedBox(height: 16),
-                  if (viewModel.message != null) ...[
-                    Text(viewModel.message!),
-                    const SizedBox(height: 16),
-                  ],
-                  for (final entry in viewModel.ratings)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _RatingCard(entry: entry),
+          case MyRatingsLoadStatus.error:
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      viewModel.refreshWarning ??
+                          viewModel.message ??
+                          '평점을 불러오지 못했습니다.',
+                      textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => viewModel.load(),
+                      child: const Text('다시 시도'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+          case MyRatingsLoadStatus.success:
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text('이번 로그인 세션에서 등록한 평점입니다.'),
+                const SizedBox(height: 16),
+                if (viewModel.message != null) ...[
+                  Text(viewModel.message!),
+                  const SizedBox(height: 16),
                 ],
-              );
-          }
+                for (final entry in viewModel.ratings)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _RatingCard(entry: entry),
+                  ),
+              ],
+            );
+        }
       },
     );
   }
 }
-
 
 class _RatingCard extends StatelessWidget {
   const _RatingCard({required this.entry});
@@ -143,8 +144,13 @@ class _RatingCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Checkbox(
-              value: context.watch<MyRatingsViewModel>().selectedRatingIds.contains(rating.ratingId),
-              onChanged: (_) => context.read<MyRatingsViewModel>().toggleRatingSelection(rating.ratingId),
+              value: context
+                  .watch<MyRatingsViewModel>()
+                  .selectedRatingIds
+                  .contains(rating.ratingId),
+              onChanged: (_) => context
+                  .read<MyRatingsViewModel>()
+                  .toggleRatingSelection(rating.ratingId),
             ),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -184,8 +190,10 @@ class _RatingCard extends StatelessWidget {
                     Text(comment),
                   ],
                   const SizedBox(height: 12),
-                  Text(formattedDate, style: Theme.of(context).textTheme.bodySmall),
-
+                  Text(
+                    formattedDate,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ],
               ),
             ),
@@ -217,20 +225,24 @@ Future<void> onEditPressed(BuildContext context, RatingDto rating) async {
     builder: (_) => RatingDialog(
       initialScore: rating.score,
       initialComment: rating.comment,
-      onSubmit: (score, comment) => context.read<MyRatingsViewModel>().updateRating(
-        ratingId: rating.ratingId,
-        score: score,
-        comment: comment,
-      ),
+      onError: (error) {
+        if (error is DioException && isRatingConflictOrForbidden(error)) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(writeErrorMessage(error))));
+        }
+      },
+      onSubmit: (score, comment) =>
+          context.read<MyRatingsViewModel>().updateRating(
+            ratingId: rating.ratingId,
+            score: score,
+            comment: comment,
+          ),
     ),
   );
   if (!context.mounted || saved != true) return;
 }
 
-Future<void> onDeletePressed(
-    BuildContext context,
-    RatingDto rating,
-    ) async {
+Future<void> onDeletePressed(BuildContext context, RatingDto rating) async {
   final confirmed = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
@@ -249,8 +261,7 @@ class _DeleteRatingDialog extends StatefulWidget {
   final Future<void> Function() onConfirm;
 
   @override
-  State<_DeleteRatingDialog> createState() =>
-      _DeleteRatingDialogState();
+  State<_DeleteRatingDialog> createState() => _DeleteRatingDialogState();
 }
 
 class _DeleteRatingDialogState extends State<_DeleteRatingDialog> {
@@ -266,9 +277,7 @@ class _DeleteRatingDialogState extends State<_DeleteRatingDialog> {
         actions: [
           MovieLogButton(
             label: '취소',
-            onPressed: _isDeleting
-                ? null
-                : () => Navigator.pop(context, false),
+            onPressed: _isDeleting ? null : () => Navigator.pop(context, false),
           ),
           MovieLogButton(
             label: '삭제',
@@ -292,17 +301,19 @@ class _DeleteRatingDialogState extends State<_DeleteRatingDialog> {
       if (!mounted) return;
 
       setState(() => _isDeleting = false);
+      if (error is DioException && isExpiredAuthError(error)) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error is DioException
-              ? writeErrorMessage(error)
-              : '삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+          content: Text(
+            error is DioException
+                ? writeErrorMessage(error)
+                : '삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+          ),
         ),
       );
     }
   }
 }
-
 
 Future<void> onDeleteSelectedPressed(BuildContext context) async {
   final confirmed = await showDialog<bool>(
@@ -324,11 +335,19 @@ Future<void> onDeleteSelectedPressed(BuildContext context) async {
   );
   if (confirmed != true || !context.mounted) return;
   try {
-    await context.read<MyRatingsViewModel>().deleteSelectedRatings();
+    final viewModel = context.read<MyRatingsViewModel>();
+    await viewModel.deleteSelectedRatings();
+    if (context.mounted && viewModel.message != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(viewModel.message!)));
+    }
   } catch (error) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('삭제 결과를 확인하지 못했습니다. 목록을 다시 조회해 주세요.')),
-    );
+    final message = error is DioException && isExpiredAuthError(error)
+        ? null
+        : context.read<MyRatingsViewModel>().message;
+    if (message == null) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }

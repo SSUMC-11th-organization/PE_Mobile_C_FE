@@ -9,7 +9,6 @@ import 'package:movielog/data/models/create_member_request.dart';
 import 'package:movielog/data/models/sign_up_models.dart';
 import 'package:movielog/screens/auth/sign_up_screen.dart';
 import 'package:movielog/services/sign_up_service.dart';
-import 'package:movielog/view_models/learning_member_session.dart';
 import 'package:movielog/view_models/sign_up_view_model.dart';
 
 class FakeSignUpService extends SignUpService {
@@ -23,51 +22,64 @@ class FakeSignUpService extends SignUpService {
   Future<bool> checkEmail(String email) async => true;
 
   @override
-  Future<CommonResponse<SignUpResult>> signUp(CreateMemberRequest request) async {
+  Future<CommonResponse<SignUpResult>> signUp(
+    CreateMemberRequest request,
+  ) async {
     submissions++;
     return CommonResponse<SignUpResult>(
       isSuccess: true,
       code: 'COMMON201',
       message: '회원가입 성공',
-      result: SignUpResult(memberId: 7, email: request.email, nickname: request.nickname),
+      result: SignUpResult(
+        memberId: 7,
+        email: request.email,
+        nickname: request.nickname,
+      ),
     );
   }
 }
 
 void main() {
-  Future<void> showSignUp(WidgetTester tester, FakeSignUpService service,
-      LearningMemberSession session) async {
-    final router = GoRouter(initialLocation: '/register', routes: [
-      GoRoute(path: '/register', builder: (_, _) => const SignUpScreen()),
-      GoRoute(path: '/movies', builder: (_, _) => const Scaffold(body: Text('영화 목록'))),
-    ]);
-    addTearDown(router.dispose);
-    await tester.pumpWidget(MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => SignUpViewModel(service)),
-        ChangeNotifierProvider.value(value: session),
+  Future<void> showSignUp(
+    WidgetTester tester,
+    FakeSignUpService service,
+  ) async {
+    final router = GoRouter(
+      initialLocation: '/register',
+      routes: [
+        GoRoute(path: '/register', builder: (_, _) => const SignUpScreen()),
+        GoRoute(
+          path: '/login',
+          builder: (_, _) => const Scaffold(body: Text('로그인 화면')),
+        ),
       ],
-      child: MaterialApp.router(routerConfig: router),
-    ));
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => SignUpViewModel(service)),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
   testWidgets('입력란과 중복 확인 버튼 두 개를 표시한다', (tester) async {
-    final session = LearningMemberSession();
-    addTearDown(session.dispose);
-    await showSignUp(tester, FakeSignUpService(), session);
+    await showSignUp(tester, FakeSignUpService());
     expect(find.byType(TextFormField), findsNWidgets(3));
     expect(find.text('중복 확인'), findsNWidgets(2));
     expect(find.text('가입하기'), findsOneWidget);
-    final button = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, '가입하기'));
+    final button = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, '가입하기'),
+    );
     expect(button.onPressed, isNull);
   });
 
-  testWidgets('중복 확인 전에는 가입 불가, 확인 후 실제 가입하고 회원 ID를 저장한다', (tester) async {
+  testWidgets('중복 확인 후 가입에 성공하면 로그인 화면으로 이동한다', (tester) async {
     final service = FakeSignUpService();
-    final session = LearningMemberSession();
-    addTearDown(session.dispose);
-    await showSignUp(tester, service, session);
+    await showSignUp(tester, service);
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), '무비러버');
     await tester.enterText(fields.at(1), 'sobo@example.com');
@@ -75,7 +87,12 @@ void main() {
     await tester.ensureVisible(find.byType(Checkbox));
     await tester.tap(find.byType(Checkbox));
     await tester.pumpAndSettle();
-    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, '가입하기')).onPressed, isNull);
+    expect(
+      tester
+          .widget<ElevatedButton>(find.widgetWithText(ElevatedButton, '가입하기'))
+          .onPressed,
+      isNull,
+    );
 
     final checks = find.widgetWithText(ElevatedButton, '중복 확인');
     await tester.ensureVisible(checks.at(0));
@@ -90,7 +107,6 @@ void main() {
     await tester.tap(submit);
     await tester.pumpAndSettle();
     expect(service.submissions, 1);
-    expect(session.memberId, 7);
-    expect(find.text('영화 목록'), findsOneWidget);
+    expect(find.text('로그인 화면'), findsOneWidget);
   });
 }
