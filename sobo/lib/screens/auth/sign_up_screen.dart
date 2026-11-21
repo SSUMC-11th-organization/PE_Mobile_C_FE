@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/models/create_member_request.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/sign_up/password_field.dart';
 
@@ -56,66 +57,111 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  Future<void> onSubmitPressed(BuildContext context) async {
+    final viewModel = context.read<SignUpViewModel>();
+
+    if (viewModel.submitStatus == SubmitStatus.submitting) return;
+    if (!(formKey.currentState?.validate() ?? false)) return;
+    if (!agreedToTerms ||
+        viewModel.nicknameCheckStatus != CheckStatus.available ||
+        viewModel.emailCheckStatus != CheckStatus.available) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    await viewModel.submit(
+      CreateMemberRequest(
+        email: emailController.text,
+        password: passwordController.text,
+        nickname: nicknameController.text,
+      ),
+    );
+
+    if (!context.mounted) return;
+
+    if (viewModel.submitStatus == SubmitStatus.success &&
+        viewModel.createdMemberId != null) {
+      // 회원가입은 인증 세션을 만들지 않으므로 로그인은 별도로 진행합니다.
+      context.go('/login');
+      return;
+    }
+
+    final message = viewModel.snackbarMessage;
+    if (message != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     final canSubmit =
         nicknameController.text.trim().length >= 2 &&
+        nicknameController.text.trim().length <= 12 &&
         emailPattern.hasMatch(emailController.text.trim()) &&
-        passwordController.text.length >= 8 &&
+        RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).{8,}$')
+            .hasMatch(passwordController.text) &&
         agreedToTerms;
 
-    return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWideScreen = constraints.maxWidth >= 700;
+    return Consumer<SignUpViewModel>(
+      builder: (context, viewModel, child) => PopScope(
+        canPop: viewModel.submitStatus != SubmitStatus.submitting,
+        child: child!,
+      ),
+      child: Scaffold(
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWideScreen = constraints.maxWidth >= 700;
 
-            if (isWideScreen) {
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(32),
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    child: _buildForm(
-                      context,
-                      canSubmit: canSubmit,
-                      isWideScreen: true,
+              if (isWideScreen) {
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(32),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: _buildForm(
+                        context,
+                        canSubmit: canSubmit,
+                        isWideScreen: true,
+                      ),
                     ),
                   ),
-                ),
+                );
+              }
+
+              return Column(
+                children: [
+                  SizedBox(
+                    height: 64,
+                    child: Center(
+                      child: Text(
+                        '회원가입',
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(color: AppColors.primary),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: _buildForm(
+                        context,
+                        canSubmit: canSubmit,
+                        isWideScreen: false,
+                      ),
+                    ),
+                  ),
+                ],
               );
-            }
-
-            return Column(
-              children: [
-                SizedBox(
-                  height: 64,
-                  child: Center(
-                    child: Text(
-                      '회원가입',
-                      style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(color: AppColors.primary),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    child: _buildForm(
-                      context,
-                      canSubmit: canSubmit,
-                      isWideScreen: false,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+            },
+          ),
         ),
       ),
     );
@@ -182,6 +228,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               return '닉네임은 두 글자 이상 입력해 주세요.';
                             }
 
+                            if (nickname.length > 12) {
+                              return '닉네임은 12자 이하로 입력해 주세요.';
+                            }
                             return null;
                           },
                           onChanged: (value) {
@@ -332,11 +381,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
           const SizedBox(height: 16),
 
-          PasswordField(
-            controller: passwordController,
-            focusNode: passwordFocusNode,
-            onChanged: (_) {
-              setState(() {});
+          Consumer<SignUpViewModel>(
+            builder: (context, viewModel, child) {
+              return PasswordField(
+                controller: passwordController,
+                focusNode: passwordFocusNode,
+                errorText: viewModel.passwordErrorText,
+                onChanged: (_) {
+                  viewModel.onPasswordChanged();
+                  setState(() {});
+                },
+              );
             },
           ),
 
@@ -371,19 +426,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
           const SizedBox(height: 24),
 
-          MovieLogButton(
-            label: '가입하기',
-            width: double.infinity,
-            onPressed: canSubmit
-                ? () {
-                    final isValid = formKey.currentState?.validate() ?? false;
-
-                    if (!isValid) return;
-
-                    FocusScope.of(context).unfocus();
-                    context.go('/home');
-                  }
-                : null,
+          Consumer<SignUpViewModel>(
+            builder: (context, viewModel, child) {
+              final isSubmitting =
+                  viewModel.submitStatus == SubmitStatus.submitting;
+              final enabled =
+                  canSubmit &&
+                  viewModel.nicknameCheckStatus == CheckStatus.available &&
+                  viewModel.emailCheckStatus == CheckStatus.available &&
+                  !isSubmitting;
+              return MovieLogButton(
+                label: '가입하기',
+                width: double.infinity,
+                isLoading: isSubmitting,
+                onPressed: enabled ? () => onSubmitPressed(context) : null,
+              );
+            },
           ),
 
           const SizedBox(height: 24),

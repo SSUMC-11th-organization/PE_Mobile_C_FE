@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/models/tmdb_movie_dto.dart';
+import '../../view_models/auth_view_model.dart';
+import '../../view_models/movie_detail_view_model.dart';
+import '../../view_models/sign_up_view_model.dart';
 import '../../widgets/movie/ratings/rating_dialog.dart';
 import '../../widgets/tmdb_poster_image.dart';
 
@@ -15,7 +19,6 @@ class MovieDetailScreen extends StatefulWidget {
 }
 
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
-  double? selectedRating;
   bool isFavorite = false;
 
   void _toggleFavorite() {
@@ -32,20 +35,43 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   }
 
   Future<void> _openRatingDialog() async {
-    final result = await showDialog<double>(
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => RatingDialog(
-        movieId: widget.movie.id,
-        movieTitle: widget.movie.title,
-        initialRating: selectedRating ?? 0,
+      barrierDismissible: false,
+      builder: (_) => RatingDialog(
+        onSubmit: (score, comment) async {
+          final viewModel = context.read<MovieDetailViewModel>();
+
+          await viewModel.createRating(score: score, comment: comment);
+          if (!mounted) return;
+
+          if (viewModel.submitStatus != SubmitStatus.success) {
+            final message = viewModel.submitMessage ?? '저장에 실패했습니다.';
+            final auth = context.read<AuthViewModel>();
+            final expired =
+                viewModel.submitErrorCode == 'AUTH401_2' ||
+                viewModel.submitErrorCode == 'AUTH401_3' ||
+                viewModel.submitErrorCode == 'AUTH401_4' ||
+                auth.sessionExpired ||
+                auth.status != AuthStatus.signedIn;
+            if (mounted && !expired) {
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(message)));
+            }
+            // 실패는 Dialog에도 전달하여 입력을 유지하고 재시도할 수 있게 합니다.
+            throw StateError(message);
+          }
+        },
       ),
     );
 
-    if (!mounted || result == null) return;
+    if (!mounted || saved != true) return;
 
-    setState(() {
-      selectedRating = result == 0 ? null : result;
-    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('평점을 등록했습니다. 마이페이지의 "내가 등록한 평점"에서 확인할 수 있습니다.'),
+      ),
+    );
   }
 
   @override
@@ -111,15 +137,29 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                         ? '등록된 줄거리가 없습니다.'
                         : movie.overview,
                   ),
-                  if (selectedRating != null) ...[
-                    const SizedBox(height: 24),
-                    Text(
-                      '내 별점: '
-                      '${selectedRating!.toStringAsFixed(1)} / 5',
-                    ),
-                  ],
                 ],
               ),
+            ),
+            Consumer<MovieDetailViewModel>(
+              builder: (context, viewModel, child) {
+                final rating = viewModel.createdRating;
+                if (rating == null) return const SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.star, color: Colors.amber),
+                      title: const Text('내가 남긴 평점'),
+                      subtitle: Text(
+                        rating.comment == null || rating.comment!.isEmpty
+                            ? '별점 ${rating.score} / 5'
+                            : '별점 ${rating.score} / 5\n${rating.comment}',
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -139,11 +179,37 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _openRatingDialog,
-                  child: const Text('평점 남기기'),
-                ),
+              Consumer2<AuthViewModel, MovieDetailViewModel>(
+                builder: (context, auth, viewModel, child) {
+                  final isSignedIn = auth.status == AuthStatus.signedIn;
+                  final isSubmitting =
+                      viewModel.submitStatus == SubmitStatus.submitting;
+
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ElevatedButton(
+                        onPressed:
+                            isSignedIn &&
+                                !isSubmitting &&
+                                viewModel.createdRating == null
+                            ? _openRatingDialog
+                            : null,
+                        child: Text(
+                          viewModel.createdRating == null
+                              ? '평점 남기기'
+                              : '평점 등록 완료',
+                        ),
+                      ),
+                      if (!isSignedIn)
+                        const Text(
+                          '로그인 후 평점을 남길 수 있어요.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12),
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

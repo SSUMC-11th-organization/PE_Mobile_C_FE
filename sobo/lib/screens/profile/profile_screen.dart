@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../view_models/auth_view_model.dart';
 import '../../widgets/common/common_app_bar.dart';
 import '../../widgets/profile/edit_profile_button.dart';
 import '../../widgets/profile/favorite_genres.dart';
@@ -79,11 +81,40 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
                 const FavoriteGenres(),
+                const SizedBox(height: 24),
+                ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text('로그아웃'),
+                  onTap: () => _confirmLogout(context),
+                ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('로그아웃할까요?'),
+        content: const Text('이 기기에 저장된 로그인 정보가 삭제됩니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('로그아웃'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout != true || !context.mounted) return;
+    await context.read<AuthViewModel>().logout();
   }
 }

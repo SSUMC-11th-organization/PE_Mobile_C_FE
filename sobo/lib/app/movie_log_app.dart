@@ -1,39 +1,95 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../core/network/movie_log_client.dart';
 import '../core/network/tmdb_client.dart';
+import '../data/services/auth_api_service.dart';
+import '../data/services/member_api_service.dart';
+import '../data/services/token_storage.dart';
 import '../router/app_router.dart';
-import '../services/member_check_service.dart';
+import '../services/sign_up_service.dart';
 import '../services/rating_api_service.dart';
 import '../services/tmdb_movie_service.dart';
 import '../theme/app_theme.dart';
+import '../view_models/auth_view_model.dart';
+import '../view_models/session_ratings_store.dart';
 
 class MovieLogApp extends StatelessWidget {
   const MovieLogApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final movieLogClient = createMovieLogClient();
+    final tokenStorage = SecureTokenStorage(const FlutterSecureStorage());
+    final publicClient = createMovieLogClient();
+    final authClient = createAuthMovieLogClient(tokenStorage);
 
     return MultiProvider(
       providers: [
+        Provider<TokenStorage>.value(value: tokenStorage),
+        Provider<SignUpService>(create: (_) => SignUpService(publicClient)),
+        Provider<AuthApiService>(create: (_) => AuthApiService(publicClient)),
+        Provider<MemberApiService>(create: (_) => MemberApiService(authClient)),
         Provider<TmdbMovieService>(
           create: (_) => TmdbMovieService(createTmdbClient()),
         ),
-        Provider<MemberCheckService>(
-          create: (_) => MemberCheckService(movieLogClient),
-        ),
         Provider<RatingApiService>(
-          create: (_) => RatingApiService(movieLogClient),
+          create: (_) => RatingApiService(publicClient, authClient),
+        ),
+        ChangeNotifierProvider<AuthViewModel>(
+          create: (context) => AuthViewModel(
+            context.read<AuthApiService>(),
+            context.read<MemberApiService>(),
+            context.read<TokenStorage>(),
+          ),
+        ),
+        ChangeNotifierProvider<SessionRatingsStore>(
+          create: (context) =>
+              SessionRatingsStore(context.read<AuthViewModel>()),
         ),
       ],
-      child: MaterialApp.router(
-        debugShowCheckedModeBanner: false,
-        title: 'MovieLog',
-        theme: AppTheme.light,
-        routerConfig: AppRouter.router,
-      ),
+      child: const _MovieLogRouterApp(),
+    );
+  }
+}
+
+class _MovieLogRouterApp extends StatefulWidget {
+  const _MovieLogRouterApp();
+
+  @override
+  State<_MovieLogRouterApp> createState() => _MovieLogRouterAppState();
+}
+
+class _MovieLogRouterAppState extends State<_MovieLogRouterApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    final authViewModel = context.read<AuthViewModel>();
+    _router = AppRouter.createRouter(authViewModel);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        authViewModel.restoreSession();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
+      title: 'MovieLog',
+      theme: AppTheme.light,
+      routerConfig: _router,
     );
   }
 }

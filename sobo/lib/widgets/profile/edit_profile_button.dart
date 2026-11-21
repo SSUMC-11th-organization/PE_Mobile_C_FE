@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class EditProfileButton extends StatelessWidget {
   const EditProfileButton({super.key});
@@ -9,7 +10,7 @@ class EditProfileButton extends StatelessWidget {
 
     return TextButton(
       onPressed: () {
-        debugPrint('프로필 수정 버튼을 눌렀습니다.');
+        context.push('/my/profile/edit');
       },
       style: TextButton.styleFrom(
         foregroundColor: colors.primary,
