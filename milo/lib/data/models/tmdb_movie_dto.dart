@@ -48,6 +48,7 @@ class TmdbMoviePageDto {
 
   final int page;
   final List<TmdbMovieDto> results;
+  List<TmdbMovieDto> get movies => results;
   final int totalPages;
   final int totalResults;
 
