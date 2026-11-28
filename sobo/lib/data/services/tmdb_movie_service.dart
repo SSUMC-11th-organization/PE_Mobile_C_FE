@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 
-import '../data/models/tmdb_genre_dto.dart';
-import '../data/models/tmdb_movie_dto.dart';
-import '../data/models/tmdb_movie_page.dart';
+import '../models/tmdb_genre_dto.dart';
+import '../models/tmdb_movie_dto.dart';
+import '../models/tmdb_movie_page_dto.dart';
 
 class TmdbMovieService {
   TmdbMovieService(this._dio);
@@ -34,6 +34,22 @@ class TmdbMovieService {
     return TmdbMoviePageDto.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<TmdbMoviePageDto> searchMovies({
+    required int page,
+    required String query,
+  }) async {
+    final response = await _dio.get(
+      '/search/movie',
+      queryParameters: {
+        'query': query,
+        'language': 'ko-KR',
+        'page': page,
+        'include_adult': false,
+      },
+    );
+    return TmdbMoviePageDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<List<TmdbGenreDto>> fetchGenres() async {
     final response = await _dio.get(
       '/genre/movie/list',
@@ -46,7 +62,6 @@ class TmdbMovieService {
         .toList();
   }
 
-  // lib/data/services/tmdb_movie_service.dart 에 추가합니다.
   Future<TmdbMovieDto> fetchMovieDetail(int movieId) async {
     final response = await _dio.get(
       '/movie/$movieId',

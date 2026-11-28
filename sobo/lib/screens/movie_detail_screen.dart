@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:provider/provider.dart';
 
-import '../../data/models/tmdb_movie_dto.dart';
-import '../../view_models/auth_view_model.dart';
-import '../../view_models/movie_detail_view_model.dart';
-import '../../view_models/sign_up_view_model.dart';
-import '../../widgets/movie/ratings/rating_dialog.dart';
-import '../../widgets/tmdb_poster_image.dart';
+import '../data/models/tmdb_movie_dto.dart';
+import '../view_models/auth_view_model.dart';
+import '../view_models/movie_detail_view_model.dart';
+import '../view_models/sign_up_view_model.dart';
+import '../widgets/movie/ratings/rating_dialog.dart';
+import '../widgets/tmdb_poster_image.dart';
+import '../widgets/favorite_button.dart';
+import '../view_models/favorite_detail_view_model.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   const MovieDetailScreen({super.key, required this.movie});
@@ -19,19 +21,12 @@ class MovieDetailScreen extends StatefulWidget {
 }
 
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
-  bool isFavorite = false;
-
-  void _toggleFavorite() {
-    setState(() {
-      isFavorite = !isFavorite;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<FavoriteDetailViewModel>().load();
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(isFavorite ? '즐겨찾기에 추가했어요.' : '즐겨찾기를 해제했어요.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   Future<void> _openRatingDialog() async {
@@ -99,12 +94,20 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    movie.title,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          movie.title,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const FavoriteButton(),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(releaseText),
@@ -167,51 +170,27 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _toggleFavorite,
-                  icon: Icon(
-                    isFavorite ? Icons.bookmark : Icons.bookmark_border,
-                  ),
-                  label: const Text('즐겨찾기'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Consumer2<AuthViewModel, MovieDetailViewModel>(
-                builder: (context, auth, viewModel, child) {
-                  final isSignedIn = auth.status == AuthStatus.signedIn;
-                  final isSubmitting =
-                      viewModel.submitStatus == SubmitStatus.submitting;
+          child: Consumer2<AuthViewModel, MovieDetailViewModel>(
+            builder: (context, auth, viewModel, child) {
+              final isSignedIn = auth.status == AuthStatus.signedIn;
+              final isSubmitting =
+                  viewModel.submitStatus == SubmitStatus.submitting;
 
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ElevatedButton(
-                        onPressed:
-                            isSignedIn &&
-                                !isSubmitting &&
-                                viewModel.createdRating == null
-                            ? _openRatingDialog
-                            : null,
-                        child: Text(
+              return SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed:
+                      isSignedIn &&
+                          !isSubmitting &&
                           viewModel.createdRating == null
-                              ? '평점 남기기'
-                              : '평점 등록 완료',
-                        ),
-                      ),
-                      if (!isSignedIn)
-                        const Text(
-                          '로그인 후 평점을 남길 수 있어요.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 12),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ],
+                      ? _openRatingDialog
+                      : null,
+                  child: Text(
+                    viewModel.createdRating == null ? '평점 남기기' : '평점 등록 완료',
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),

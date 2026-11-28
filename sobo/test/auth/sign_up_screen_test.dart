@@ -8,7 +8,7 @@ import 'package:movielog/data/models/common_response.dart';
 import 'package:movielog/data/models/create_member_request.dart';
 import 'package:movielog/data/models/sign_up_models.dart';
 import 'package:movielog/screens/auth/sign_up_screen.dart';
-import 'package:movielog/services/sign_up_service.dart';
+import 'package:movielog/data/services/sign_up_service.dart';
 import 'package:movielog/view_models/sign_up_view_model.dart';
 
 class FakeSignUpService extends SignUpService {

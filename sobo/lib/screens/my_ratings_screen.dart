@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../data/models/rating_dto.dart';
 import '../data/models/rating_with_movie.dart';
 import '../view_models/my_ratings_view_model.dart';
-import '../services/rating_api_service.dart';
+import '../data/services/rating_api_service.dart';
 import '../widgets/movie/ratings/rating_dialog.dart';
 import '../widgets/movielog_button.dart';
 import '../widgets/loading_overlay.dart';
@@ -53,34 +53,10 @@ class _MyRatingsListView extends StatelessWidget {
       builder: (context, viewModel, child) {
         switch (viewModel.status) {
           case MyRatingsLoadStatus.idle:
-          case MyRatingsLoadStatus.loading:
             return const Center(child: CircularProgressIndicator());
 
           case MyRatingsLoadStatus.empty:
             return const Center(child: Text('등록된 평점이 없습니다.'));
-
-          case MyRatingsLoadStatus.error:
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      viewModel.refreshWarning ??
-                          viewModel.message ??
-                          '평점을 불러오지 못했습니다.',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => viewModel.load(),
-                      child: const Text('다시 시도'),
-                    ),
-                  ],
-                ),
-              ),
-            );
 
           case MyRatingsLoadStatus.success:
             return ListView(

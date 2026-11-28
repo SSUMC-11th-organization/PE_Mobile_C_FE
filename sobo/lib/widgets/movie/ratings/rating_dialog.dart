@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../../../data/models/rating_request.dart';
-import '../../../services/rating_api_service.dart';
+import '../../../data/services/rating_api_service.dart';
 import '../../movielog_button.dart';
 import 'movie_rating_input.dart';
 

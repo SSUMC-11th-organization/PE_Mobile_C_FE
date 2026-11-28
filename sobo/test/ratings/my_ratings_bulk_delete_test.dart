@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:movielog/data/models/rating_dto.dart';
-import 'package:movielog/services/rating_api_service.dart';
-import 'package:movielog/services/tmdb_movie_service.dart';
+import 'package:movielog/data/services/rating_api_service.dart';
+import 'package:movielog/data/services/tmdb_movie_service.dart';
 import 'package:movielog/data/services/auth_api_service.dart';
 import 'package:movielog/data/services/member_api_service.dart';
 import 'package:movielog/data/services/token_storage.dart';
@@ -24,15 +24,11 @@ class FakeTokenStorage implements TokenStorage {
 }
 
 class FakeRatingService extends RatingApiService {
-  // v7 Service는 공개 조회용 Dio와 JWT 보호 요청용 Dio를 각각 받습니다.
-  FakeRatingService() : super(Dio(), Dio());
+  FakeRatingService() : super(Dio());
 
   final deleted = <int>[];
   final failedIds = <int>{};
-  final fetchedMemberIds = <int>[];
   Completer<void>? gate;
-  bool failGet = false;
-  int gets = 0;
 
   @override
   Future<void> deleteRating(int ratingId) async {
@@ -40,21 +36,9 @@ class FakeRatingService extends RatingApiService {
     await gate?.future;
     if (failedIds.contains(ratingId)) {
       throw DioException(
-        requestOptions: RequestOptions(path: '/v7/ratings/$ratingId'),
+        requestOptions: RequestOptions(path: '/v8/ratings/$ratingId'),
       );
     }
-  }
-
-  @override
-  Future<List<RatingDto>> fetchMyRatings(int memberId) async {
-    gets++;
-    fetchedMemberIds.add(memberId);
-    if (failGet) {
-      throw DioException(
-        requestOptions: RequestOptions(path: '/v7/members/$memberId/ratings'),
-      );
-    }
-    return [];
   }
 }
 
@@ -95,11 +79,10 @@ void main() {
     expect(service.deleted, [1, 2]);
     expect(model.selectedRatingIds, {2});
     expect(model.isDeletingSelected, isFalse);
-    expect(service.gets, 0);
     expect(model.message, contains('1개'));
   });
 
-  test('삭제 성공 후 세션 목록에서 제거하고 목록 API는 호출하지 않는다', () async {
+  test('삭제한 평점은 세션 목록을 다시 읽어도 나타나지 않는다', () async {
     final service = FakeRatingService();
     final auth = _signedInAuth();
     final store = SessionRatingsStore(auth)..add(_rating(1));
@@ -117,10 +100,9 @@ void main() {
     expect(model.isDeletingSelected, isFalse);
     expect(model.selectedRatingIds, isEmpty);
     expect(model.status, MyRatingsLoadStatus.empty);
-    expect(model.refreshWarning, isNull);
     await model.load();
+    expect(model.ratings, isEmpty);
     expect(service.deleted, [1]);
-    expect(service.gets, 0);
   });
 }
 
