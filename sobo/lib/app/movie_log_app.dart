@@ -8,13 +8,13 @@ import '../core/network/tmdb_client.dart';
 import '../core/session/auth_session_bridge.dart';
 import '../core/session/session_guard.dart';
 import '../data/services/auth_api_service.dart';
+import '../data/services/favorite_api_service.dart';
 import '../data/services/member_api_service.dart';
+import '../data/services/rating_api_service.dart';
+import '../data/services/sign_up_service.dart';
+import '../data/services/tmdb_movie_service.dart';
 import '../data/services/token_storage.dart';
 import '../router/app_router.dart';
-import '../services/sign_up_service.dart';
-import '../data/services/favorite_api_service.dart';
-import '../services/rating_api_service.dart';
-import '../data/services/tmdb_movie_service.dart';
 import '../theme/app_theme.dart';
 import '../view_models/auth_view_model.dart';
 import '../view_models/session_ratings_store.dart';
@@ -38,7 +38,7 @@ class MovieLogApp extends StatelessWidget {
           create: (_) => TmdbMovieService(createTmdbClient()),
         ),
         Provider<RatingApiService>(
-          create: (_) => RatingApiService(publicClient, authClient),
+          create: (_) => RatingApiService(authClient),
         ),
         Provider<FavoriteApiService>(
           create: (_) => FavoriteApiService(authClient),

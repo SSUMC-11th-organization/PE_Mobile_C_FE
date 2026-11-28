@@ -1,9 +1,9 @@
 import 'package:dio/dio.dart';
 
-import '../data/models/check_result.dart';
-import '../data/models/common_response.dart';
-import '../data/models/create_member_request.dart';
-import '../data/models/sign_up_models.dart';
+import '../models/check_result.dart';
+import '../models/common_response.dart';
+import '../models/create_member_request.dart';
+import '../models/sign_up_models.dart';
 
 class SignUpService {
   SignUpService(this._dio);

@@ -1,11 +1,11 @@
 import 'package:dio/dio.dart';
 
-import '../core/network/api_error.dart';
-import '../data/models/common_response.dart';
-import '../data/models/rating_dto.dart';
-import '../data/models/rating_request.dart';
+import '../../core/network/api_error.dart';
+import '../models/common_response.dart';
+import '../models/rating_dto.dart';
+import '../models/rating_request.dart';
 
-RatingDto parseRatingResult(Object? data) {
+RatingDto _parseRatingResult(Object? data) {
   if (data is! Map<String, dynamic>) {
     throw StateError('평점 응답 형식이 올바르지 않습니다.');
   }
@@ -21,32 +21,15 @@ RatingDto parseRatingResult(Object? data) {
   return rating;
 }
 
-List<RatingDto> parseRatingList(Object? data) {
-  if (data is! List) {
-    throw StateError('평점 목록 응답은 배열이어야 합니다.');
-  }
-
-  return data
-      .map((value) => RatingDto.fromJson(value as Map<String, dynamic>))
-      .toList();
-}
-
 class RatingApiService {
-  RatingApiService(this._publicDio, this._authDio);
+  RatingApiService(this._authDio);
 
-  final Dio _publicDio;
   final Dio _authDio;
-
-  // 유저별 평점 조회는 공개 API이며 응답 result가 배열입니다.
-  Future<List<RatingDto>> fetchMyRatings(int memberId) async {
-    final response = await _publicDio.get('/v8/members/$memberId/ratings');
-    return parseRatingList(response.data);
-  }
 
   // 등록·수정·삭제는 JWT를 붙이는 보호 Client를 사용합니다.
   Future<RatingDto> createRating(CreateRatingRequest request) async {
     final response = await _authDio.post('/v8/ratings', data: request.toJson());
-    return parseRatingResult(response.data);
+    return _parseRatingResult(response.data);
   }
 
   Future<RatingDto> updateRating({
@@ -59,12 +42,12 @@ class RatingApiService {
       // PATCH는 전체 교체이므로 null comment도 명시적으로 전송합니다.
       data: {'score': score, 'comment': comment},
     );
-    return parseRatingResult(response.data);
+    return _parseRatingResult(response.data);
   }
 
   Future<void> deleteRating(int ratingId) async {
     final response = await _authDio.delete('/v8/ratings/$ratingId');
-    // v7 삭제 성공은 result가 null인 HTTP 200입니다.
+    // v8 삭제 성공은 result가 null인 HTTP 200입니다.
     if (response.statusCode != 200) {
       throw StateError('예상하지 못한 삭제 응답: ${response.statusCode}');
     }

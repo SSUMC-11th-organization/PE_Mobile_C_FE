@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
 import '../screens/movie_detail_loader.dart';
-import '../services/sign_up_service.dart';
+import '../data/services/sign_up_service.dart';
 import '../data/services/favorite_api_service.dart';
 import '../view_models/sign_up_view_model.dart';
 import '../screens/auth/login_screen.dart';
@@ -22,7 +22,7 @@ import '../data/models/tmdb_movie_dto.dart';
 import '../data/services/member_api_service.dart';
 import '../screens/my_ratings_screen.dart';
 import '../screens/edit_profile_screen.dart';
-import '../services/rating_api_service.dart';
+import '../data/services/rating_api_service.dart';
 import '../view_models/my_ratings_view_model.dart';
 import '../view_models/auth_view_model.dart';
 import '../view_models/edit_profile_view_model.dart';

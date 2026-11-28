@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import '../core/network/api_error.dart';
 import '../data/models/rating_with_movie.dart';
 import '../data/models/tmdb_movie_dto.dart';
-import '../services/rating_api_service.dart';
+import '../data/services/rating_api_service.dart';
 import '../data/services/tmdb_movie_service.dart';
 import 'auth_view_model.dart';
 import 'session_ratings_store.dart';
 
-enum MyRatingsLoadStatus { idle, loading, success, empty, error }
+enum MyRatingsLoadStatus { idle, success, empty }
 
 class MyRatingsViewModel extends ChangeNotifier {
   MyRatingsViewModel(
@@ -37,7 +37,6 @@ class MyRatingsViewModel extends ChangeNotifier {
   MyRatingsLoadStatus status = MyRatingsLoadStatus.idle;
   String? message;
   String? messageCode;
-  String? refreshWarning;
 
   Future<void> load() async {
     if (_disposed || _auth.status != AuthStatus.signedIn) return;
@@ -65,7 +64,6 @@ class MyRatingsViewModel extends ChangeNotifier {
         : MyRatingsLoadStatus.success;
     message = null;
     messageCode = null;
-    refreshWarning = null;
     notifyListeners();
   }
 
@@ -195,7 +193,6 @@ class MyRatingsViewModel extends ChangeNotifier {
     final sessionVersion = _auth.sessionVersion;
     message = null;
     messageCode = null;
-    refreshWarning = null;
     isDeletingSelected = true;
     notifyListeners();
     var failed = 0;
@@ -261,7 +258,6 @@ class MyRatingsViewModel extends ChangeNotifier {
     selectedRatingIds.clear();
     message = null;
     messageCode = null;
-    refreshWarning = null;
     status = MyRatingsLoadStatus.idle;
     notifyListeners();
   }

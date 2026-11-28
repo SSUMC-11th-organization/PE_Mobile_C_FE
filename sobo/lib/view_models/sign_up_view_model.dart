@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../data/models/create_member_request.dart';
-import '../services/sign_up_service.dart';
+import '../data/services/sign_up_service.dart';
 
 enum CheckStatus { idle, checking, available, duplicated, error }
 
