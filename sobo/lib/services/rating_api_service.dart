@@ -39,13 +39,13 @@ class RatingApiService {
 
   // 유저별 평점 조회는 공개 API이며 응답 result가 배열입니다.
   Future<List<RatingDto>> fetchMyRatings(int memberId) async {
-    final response = await _publicDio.get('/v7/members/$memberId/ratings');
+    final response = await _publicDio.get('/v8/members/$memberId/ratings');
     return parseRatingList(response.data);
   }
 
   // 등록·수정·삭제는 JWT를 붙이는 보호 Client를 사용합니다.
   Future<RatingDto> createRating(CreateRatingRequest request) async {
-    final response = await _authDio.post('/v7/ratings', data: request.toJson());
+    final response = await _authDio.post('/v8/ratings', data: request.toJson());
     return parseRatingResult(response.data);
   }
 
@@ -55,7 +55,7 @@ class RatingApiService {
     String? comment,
   }) async {
     final response = await _authDio.patch(
-      '/v7/ratings/$ratingId',
+      '/v8/ratings/$ratingId',
       // PATCH는 전체 교체이므로 null comment도 명시적으로 전송합니다.
       data: {'score': score, 'comment': comment},
     );
@@ -63,19 +63,12 @@ class RatingApiService {
   }
 
   Future<void> deleteRating(int ratingId) async {
-    final response = await _authDio.delete('/v7/ratings/$ratingId');
+    final response = await _authDio.delete('/v8/ratings/$ratingId');
     // v7 삭제 성공은 result가 null인 HTTP 200입니다.
     if (response.statusCode != 200) {
       throw StateError('예상하지 못한 삭제 응답: ${response.statusCode}');
     }
   }
-}
-
-String writeMyRatingsErrorMessage(DioException error) {
-  final status = error.response?.statusCode;
-  if (status == 400) return 'memberId 형식을 다시 확인해 주세요.';
-  if (status == 404) return '존재하지 않는 회원입니다.';
-  return '평점을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 }
 
 String writeErrorMessage(DioException error) {

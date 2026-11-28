@@ -5,13 +5,16 @@ import 'package:provider/provider.dart';
 
 import '../core/network/movie_log_client.dart';
 import '../core/network/tmdb_client.dart';
+import '../core/session/auth_session_bridge.dart';
+import '../core/session/session_guard.dart';
 import '../data/services/auth_api_service.dart';
 import '../data/services/member_api_service.dart';
 import '../data/services/token_storage.dart';
 import '../router/app_router.dart';
 import '../services/sign_up_service.dart';
+import '../data/services/favorite_api_service.dart';
 import '../services/rating_api_service.dart';
-import '../services/tmdb_movie_service.dart';
+import '../data/services/tmdb_movie_service.dart';
 import '../theme/app_theme.dart';
 import '../view_models/auth_view_model.dart';
 import '../view_models/session_ratings_store.dart';
@@ -37,6 +40,9 @@ class MovieLogApp extends StatelessWidget {
         Provider<RatingApiService>(
           create: (_) => RatingApiService(publicClient, authClient),
         ),
+        Provider<FavoriteApiService>(
+          create: (_) => FavoriteApiService(authClient),
+        ),
         ChangeNotifierProvider<AuthViewModel>(
           create: (context) => AuthViewModel(
             context.read<AuthApiService>(),
@@ -47,6 +53,22 @@ class MovieLogApp extends StatelessWidget {
         ChangeNotifierProvider<SessionRatingsStore>(
           create: (context) =>
               SessionRatingsStore(context.read<AuthViewModel>()),
+        ),
+        Provider<AuthSessionBridge>(
+          create: (context) {
+            final auth = context.read<AuthViewModel>();
+            return AuthSessionBridge(
+              authSignals: auth,
+              sessionVersion: () => auth.sessionVersion,
+              verifiedEmail: () => auth.status == AuthStatus.signedIn
+                  ? auth.member?.email
+                  : null,
+            );
+          },
+          dispose: (_, bridge) => bridge.dispose(),
+        ),
+        Provider<SessionGuard>(
+          create: (context) => context.read<AuthSessionBridge>().guard,
         ),
       ],
       child: const _MovieLogRouterApp(),

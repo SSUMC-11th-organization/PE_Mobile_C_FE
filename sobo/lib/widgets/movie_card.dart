@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../data/models/tmdb_movie_dto.dart';
-import '../../tmdb_poster_image.dart';
+import '../data/models/tmdb_movie_dto.dart';
+import 'tmdb_poster_image.dart';
 
 class MovieCard extends StatelessWidget {
-  const MovieCard({super.key, required this.movie});
+  const MovieCard({super.key, required this.movie, this.onOpen});
 
   final TmdbMovieDto movie;
+  final Future<void> Function(TmdbMovieDto movie)? onOpen;
 
   String get releaseYear {
     final date = movie.releaseDate;
@@ -23,7 +24,11 @@ class MovieCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        context.push('/movies/${movie.id}', extra: movie);
+        if (onOpen != null) {
+          onOpen!(movie);
+        } else {
+          context.push('/movies/${movie.id}', extra: movie);
+        }
       },
       child: Card(
         clipBehavior: Clip.antiAlias,

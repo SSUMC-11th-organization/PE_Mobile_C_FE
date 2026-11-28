@@ -5,7 +5,7 @@ import '../core/network/api_error.dart';
 import '../data/models/rating_with_movie.dart';
 import '../data/models/tmdb_movie_dto.dart';
 import '../services/rating_api_service.dart';
-import '../services/tmdb_movie_service.dart';
+import '../data/services/tmdb_movie_service.dart';
 import 'auth_view_model.dart';
 import 'session_ratings_store.dart';
 

@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../view_models/auth_view_model.dart';
-import '../../widgets/common/common_app_bar.dart';
-import '../../widgets/profile/edit_profile_button.dart';
-import '../../widgets/profile/favorite_genres.dart';
-import '../../widgets/profile/profile_header.dart';
-import '../../widgets/profile/stat_item.dart';
+import '../view_models/auth_view_model.dart';
+import '../widgets/common/common_app_bar.dart';
+import '../widgets/profile/edit_profile_button.dart';
+import '../widgets/profile/favorite_genres.dart';
+import '../widgets/profile/profile_header.dart';
+import '../widgets/profile/stat_item.dart';
 
 import 'package:go_router/go_router.dart';
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+class MyPageScreen extends StatelessWidget {
+  const MyPageScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthViewModel>();
     return Scaffold(
       appBar: CommonAppBar(title: '내 프로필'),
       body: SafeArea(
@@ -77,6 +78,38 @@ class ProfileScreen extends StatelessWidget {
                       size: 28,
                     ),
                     onTap: () => context.push('/my/ratings'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFD5C7E8),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 6,
+                    ),
+                    title: const Text(
+                      '내 즐겨찾기',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Color(0xFF6750A4),
+                      size: 28,
+                    ),
+                    onTap: auth.member == null
+                        ? null
+                        : () => context.push('/my/favorites'),
                   ),
                 ),
                 const SizedBox(height: 32),

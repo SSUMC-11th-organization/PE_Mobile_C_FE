@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:movielog/data/models/rating_dto.dart';
 import 'package:movielog/services/rating_api_service.dart';
-import 'package:movielog/services/tmdb_movie_service.dart';
+import 'package:movielog/data/services/tmdb_movie_service.dart';
 import 'package:movielog/data/services/auth_api_service.dart';
 import 'package:movielog/data/services/member_api_service.dart';
 import 'package:movielog/data/services/token_storage.dart';
